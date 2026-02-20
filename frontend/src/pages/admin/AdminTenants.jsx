@@ -52,9 +52,7 @@ const AdminTenants = () => {
     <AdminLayout>
       <Card>
         <CardContent className="p-6">
-          <h2 className="text-2xl font-bold mb-6">
-            Tenant Management
-          </h2>
+          <h2 className="text-2xl font-bold mb-6">Tenant Management</h2>
 
           {isLoading ? (
             <p>Loading tenants...</p>
@@ -75,12 +73,8 @@ const AdminTenants = () => {
                   {tenants.map((tenant) => (
                     <tr key={tenant._id} className="border-t">
                       <td className="p-3">{tenant.name}</td>
-                      <td className="p-3">
-                        {tenant.ownerUserId?.name}
-                      </td>
-                      <td className="p-3">
-                        {tenant.ownerUserId?.email}
-                      </td>
+                      <td className="p-3">{tenant.ownerUserId?.name}</td>
+                      <td className="p-3">{tenant.ownerUserId?.email}</td>
 
                       <td className="p-3">
                         <span
@@ -88,8 +82,8 @@ const AdminTenants = () => {
                             tenant.status === "active"
                               ? "bg-green-500"
                               : tenant.status === "blocked"
-                              ? "bg-red-500"
-                              : "bg-yellow-500"
+                                ? "bg-red-500"
+                                : "bg-yellow-500"
                           }`}
                         >
                           {tenant.status}
@@ -104,17 +98,13 @@ const AdminTenants = () => {
                             handleStatusChange(tenant._id, value)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Change status" />
                           </SelectTrigger>
 
-                          <SelectContent>
-                            <SelectItem value="active">
-                              Active
-                            </SelectItem>
-                            <SelectItem value="blocked">
-                              Blocked
-                            </SelectItem>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>
