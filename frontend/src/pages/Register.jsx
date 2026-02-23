@@ -21,7 +21,7 @@ export default function Register() {
     e.preventDefault();
     try {
       await register(form);
-      navigate("/dashboard");
+      navigate("/tenant/dashboard");
     } catch (err) {
       alert(err.response?.data?.message || "Registration failed");
     }

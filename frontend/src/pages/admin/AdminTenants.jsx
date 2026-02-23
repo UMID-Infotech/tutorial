@@ -12,6 +12,7 @@ import {
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { DashboardSkeleton } from "@/components/common/DashboardSkeleton";
 
 const fetchTenants = async () => {
   const res = await api.get("/superadmin/tenants");
@@ -50,13 +51,17 @@ const AdminTenants = () => {
 
   return (
     <AdminLayout>
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Tenant Management</h2>
+      {/* <div className="h-20 w-20 bg-red-500 animate-pulse rounded-md" /> */}
 
-          {isLoading ? (
-            <p>Loading tenants...</p>
-          ) : (
+      {isLoading ? (
+        <div className="p-6">
+          <DashboardSkeleton />
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-2xl font-bold mb-6">Tenant Management</h2>
+
             <div className="overflow-x-auto">
               <table className="w-full border">
                 <thead className="bg-gray-100">
@@ -98,11 +103,11 @@ const AdminTenants = () => {
                             handleStatusChange(tenant._id, value)
                           }
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger>
                             <SelectValue placeholder="Change status" />
                           </SelectTrigger>
 
-                          <SelectContent className="bg-white">
+                          <SelectContent>
                             <SelectItem value="active">Active</SelectItem>
                             <SelectItem value="blocked">Blocked</SelectItem>
                           </SelectContent>
@@ -113,9 +118,9 @@ const AdminTenants = () => {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </AdminLayout>
   );
 };

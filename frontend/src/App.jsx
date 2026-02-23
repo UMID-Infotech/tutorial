@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
+import TenantDashboard from "./pages/tenant/TenantDashboard";
 
 function App() {
   return (
@@ -20,6 +21,11 @@ function App() {
           <Route element={<PrivateRoute allowedRoles={["superadmin"]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/tenants" element={<AdminTenants />} />
+          </Route>
+
+          {/* Tenant Routes */}
+          <Route element={<PrivateRoute allowedRoles={["tenant"]} />}>
+            <Route path="/tenant/dashboard" element={<TenantDashboard />} />
           </Route>
 
           {/* Redirect old /dashboard */}
