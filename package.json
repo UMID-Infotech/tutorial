@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "client": "cd Client && vite",
-    "build": "cd Client && npm install && npm run build",
+    "client": "vite --config Client/vite.config.js",
+    "build": "vite build --config Client/vite.config.js",
     "start": "node server/server.js",
     "server": "nodemon server/server.js",
     "dev": "concurrently \"npm run server\" \"npm run Client\""
