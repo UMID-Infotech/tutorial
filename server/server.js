@@ -53,7 +53,7 @@ app.use("/api/attendance", attendanceRoutes);
 // ✅ Serve frontend (AFTER routes)
 app.use(express.static(path.join(__dirname, "../Client/dist")));
 
-app.get("*", (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../Client/dist/index.html"));
 });
 
