@@ -51,10 +51,10 @@ app.use("/api/meet", meetRoutes);
 app.use("/api/attendance", attendanceRoutes);
 
 // ✅ Serve frontend (AFTER routes)
-app.use(express.static(path.join(__dirname, "../Client/dist")));
+app.use(express.static(path.join(__dirname, "../dist")));
 
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "../Client/dist/index.html"));
+  res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
 
 // ✅ Port
