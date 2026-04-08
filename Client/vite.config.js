@@ -1,3 +1,4 @@
+//Client/vite.config.js
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -18,6 +19,7 @@ export default defineConfig({
   },
 
   build: {
-    outDir: "dist", // builds to root/dist (important for your setup)
+    outDir: "../dist", // 👈 build goes to root/dist
+    emptyOutDir: true,
   },
 });

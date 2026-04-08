@@ -1,3 +1,4 @@
+//server/server.js
 import express from "express";
 import { config } from "dotenv";
 import { dbConnect } from "./configs/dbConnect.js";
