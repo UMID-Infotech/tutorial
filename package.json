@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "client": "cd client && vite",
+    "client": "cd Client && vite",
     "build": "cd Client && npm install && npm run build",
     "start": "node server/server.js",
     "server": "nodemon server/server.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run Client\""
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
