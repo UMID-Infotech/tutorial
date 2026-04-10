@@ -31,11 +31,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ CORS (UPDATED ✅)
+// ✅ CORS (allow all in production or use env)
 app.use(
   cors({
-    origin: "https://tutorial-app-ten.vercel.app", // your Vercel frontend
-    credentials: true,
+    origin: "*",
   }),
 );
 
@@ -52,9 +51,9 @@ app.use("/api/class", classRoutes);
 app.use("/api/meet", meetRoutes);
 app.use("/api/attendance", attendanceRoutes);
 
-// ❌ REMOVE THIS IF USING VERCEL FRONTEND
-// (Not needed anymore because frontend is separate)
+// ✅ Serve frontend (AFTER routes)
 app.use(express.static(path.join(__dirname, "../dist")));
+
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
