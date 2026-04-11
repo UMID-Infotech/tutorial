@@ -34,7 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 // ✅ CORS (UPDATED ✅)
 app.use(
   cors({
-    origin: "https://tutorial-app-ten.vercel.app", // your Vercel frontend
+    origin: "https://tution-topaz.vercel.app", // your Vercel frontend
     credentials: true,
   }),
 );
