@@ -32,12 +32,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (UPDATED ✅)
-app.use(
-  cors({
-    origin: "https://tution-topaz.vercel.app", // your Vercel frontend
-    credentials: true,
-  }),
-);
 
 app.use(
   cors({
