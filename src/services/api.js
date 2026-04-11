@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://tutorial-rlnv.onrender.com/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   // baseURL: "http://localhost:4000/api",
 });
 
