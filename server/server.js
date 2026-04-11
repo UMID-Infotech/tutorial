@@ -39,6 +39,17 @@ app.use(
   }),
 );
 
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://tution-topaz.vercel.app",
+      "https://tution-tawny-three.vercel.app",
+    ],
+    credentials: true
+  })
+);
+
 // ✅ Static uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
