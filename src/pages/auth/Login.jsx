@@ -27,7 +27,7 @@ import { useState } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
-  const hasGoogleClientId = Boolean(import.meta.env.GOOGLE_CLIENT_ID);
+  const hasGoogleClientId = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
