@@ -87,9 +87,18 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
         throw new Error("Invalid Mail Type");
     }
 
+    // await transporter.sendMail({
+    //   from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
+    //   to: dummyEmail,
+    //   subject: mailData.subject,
+    //   html: mailData.html,
+    // });
+
+    const isDev = process.env.NODE_ENV !== "production";
+
     await transporter.sendMail({
       from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
-      to: dummyEmail,
+      to: isDev ? dummyEmail : recipient,
       subject: mailData.subject,
       html: mailData.html,
     });
