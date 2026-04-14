@@ -1,4 +1,3 @@
-//server/controllers/admin.controller.js
 import { Tenant } from "../models/tenant.model.js";
 import { User } from "../models/user.model.js";
 import { Tutor } from "../models/tutor.model.js";
@@ -11,6 +10,7 @@ import { MAIL_TYPES } from "../services/mail/mail.constant.js";
 /**
  * Get all pending tenant requests
  */
+const dummyEmail = "umidphp.akshay@gmail.com";
 export const getPendingTenants = async (req, res) => {
   try {
     const tenants = await Tenant.find({ status: "inactive" })
@@ -90,10 +90,10 @@ export const approveTenant = async (req, res) => {
 
     await User.findByIdAndUpdate(tenant.ownerUserId._id, { status: "active" });
 
-    // ✅ Use real tenant email
     sendTenantMail(MAIL_TYPES.TENANT_APPROVED, {
       name: tenant.ownerUserId.name,
-      email: tenant.ownerUserId.email,
+      email: dummyEmail,
+      // email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Approval Mail Error:", err));
 
     return res.status(200).json({
@@ -131,10 +131,10 @@ export const blockTenant = async (req, res) => {
 
     await User.findByIdAndUpdate(tenant.ownerUserId._id, { status: "blocked" });
 
-    // ✅ Use real tenant email
     sendTenantMail(MAIL_TYPES.TENANT_BLOCKED, {
       name: tenant.ownerUserId.name,
-      email: tenant.ownerUserId.email,
+      email: dummyEmail,
+      // email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Block Mail Error:", err));
 
     return res.status(200).json({
@@ -149,9 +149,6 @@ export const blockTenant = async (req, res) => {
   }
 };
 
-/**
- * Make Tenant Inactive
- */
 export const makeTenantInactive = async (req, res) => {
   try {
     const { id } = req.params;
@@ -180,10 +177,10 @@ export const makeTenantInactive = async (req, res) => {
       status: "inactive",
     });
 
-    // ✅ Use real tenant email
     sendTenantMail(MAIL_TYPES.TENANT_INACTIVE, {
       name: tenant.ownerUserId.name,
-      email: tenant.ownerUserId.email,
+      email: dummyEmail,
+      // email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Inactive Mail Error:", err));
 
     return res.status(200).json({
@@ -197,7 +194,6 @@ export const makeTenantInactive = async (req, res) => {
     });
   }
 };
-
 /**
  * Get all online users
  */
@@ -214,6 +210,7 @@ export const getOnlineUsers = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Online Users Error:", error);
+
     return res.status(500).json({
       message: "Server Error",
     });
@@ -329,6 +326,7 @@ export const getAllStudents = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    // Get batches for each student
     const studentsWithBatches = await Promise.all(
       students.map(async (student) => {
         const batches = await Batch.find({
