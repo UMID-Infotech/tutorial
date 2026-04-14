@@ -1,7 +1,6 @@
+//server/services/mail/mail.service.js
 import transporter from "../../configs/mail.config.js";
 import { MAIL_TYPES } from "./mail.constant.js";
-
-const dummyEmail = "umidphp.akshay@gmail.com";
 
 import { tenantRegisterAdminTemplate } from "../../templates/tenantRegisterAdmin.template.js";
 import { tenantWelcomeTemplate } from "../../templates/tenantWelcome.template.js";
@@ -20,12 +19,13 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
   try {
     let mailData;
     let recipient;
-    // console.log("Preparing to send email of type:", tenant, type);
+
+    console.log(`[Mail Service] Preparing email | type: ${type} | to: ${tenant?.email}`);
 
     switch (type) {
       case MAIL_TYPES.TENANT_REGISTER_ADMIN:
         mailData = tenantRegisterAdminTemplate(tenant);
-        recipient = process.env.ADMIN_EMAIL; // send to admin
+        recipient = process.env.ADMIN_EMAIL;
         break;
 
       case MAIL_TYPES.TENANT_WELCOME:
@@ -35,7 +35,6 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
 
       case MAIL_TYPES.TENANT_APPROVED:
         mailData = tenantApprovedTemplate(tenant);
-        console.log("Tenant Approved Mail Data:", process.env.ADMIN_EMAIL);
         recipient = tenant.email;
         break;
 
@@ -46,7 +45,6 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
 
       case MAIL_TYPES.TENANT_BLOCKED:
         mailData = tenantBlockedTemplate(tenant);
-        console.log("Tenant Approved Mail Data:", process.env.ADMIN_EMAIL);
         recipient = tenant.email;
         break;
 
@@ -69,10 +67,12 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
         mailData = classAssignedStudentTemplate(tenant);
         recipient = tenant.email;
         break;
+
       case MAIL_TYPES.CLASS_REMINDER_STUDENT:
         mailData = classReminderStudentTemplate(tenant);
         recipient = tenant.email;
         break;
+
       case MAIL_TYPES.CLASS_REMINDER_TUTOR:
         mailData = classReminderTutorTemplate(tenant);
         recipient = tenant.email;
@@ -84,27 +84,22 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
         break;
 
       default:
-        throw new Error("Invalid Mail Type");
+        throw new Error(`Invalid Mail Type: ${type}`);
     }
 
-    // await transporter.sendMail({
-    //   from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
-    //   to: dummyEmail,
-    //   subject: mailData.subject,
-    //   html: mailData.html,
-    // });
+    if (!recipient) {
+      throw new Error(`Recipient email is missing for mail type: ${type}`);
+    }
 
-    const isDev = process.env.NODE_ENV !== "production";
-
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
-      to: isDev ? dummyEmail : recipient,
+      to: recipient,
       subject: mailData.subject,
       html: mailData.html,
     });
 
-    // console.log(` Email sent successfully: ${type}`);
+    console.log(`[Mail Service] ✅ Email sent successfully | type: ${type} | to: ${recipient} | messageId: ${info.messageId}`);
   } catch (error) {
-    console.error(" Email sending failed:", error.message);
+    console.error(`[Mail Service] ❌ Email sending failed | type: ${type} | error: ${error.message}`);
   }
 };
