@@ -1,7 +1,8 @@
+
 import transporter from "../../configs/mail.config.js";
 import { MAIL_TYPES } from "./mail.constant.js";
 
-const dummyEmail = "umidphp.akshay@gmail.com";
+const dummyEmail = "voltix755@gmail.com";
 
 import { tenantRegisterAdminTemplate } from "../../templates/tenantRegisterAdmin.template.js";
 import { tenantWelcomeTemplate } from "../../templates/tenantWelcome.template.js";
@@ -13,8 +14,8 @@ import { studentAddedTemplate } from "../../templates/studentAdded.template.js";
 import { classAssignedTutorTemplate } from "../../templates/classAssignedTutor.template.js";
 import { classAssignedStudentTemplate } from "../../templates/classAssignedStudent.template.js";
 import { passwordResetTemplate } from "../../templates/passwordReset.template.js";
-import { classReminderStudentTemplate } from "../../templates/classReminderStudentTemplate.js";
-import { classReminderTutorTemplate } from "../../templates/classReminderTutorTemplate.js";
+import { classReminderStudentTemplate } from "../../templates/classReminderStudentTemplate.js"
+import { classReminderTutorTemplate } from "../../templates/classReminderTutorTemplate.js"
 
 export const sendTenantMail = async (type, tenant, options = {}) => {
   try {
@@ -35,7 +36,8 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
 
       case MAIL_TYPES.TENANT_APPROVED:
         mailData = tenantApprovedTemplate(tenant);
-        console.log("Tenant Approved Mail Data:", process.env.ADMIN_EMAIL);
+        console.log
+          ("Tenant Approved Mail Data:", process.env.ADMIN_EMAIL);
         recipient = tenant.email;
         break;
 
@@ -87,18 +89,9 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
         throw new Error("Invalid Mail Type");
     }
 
-    // await transporter.sendMail({
-    //   from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
-    //   to: dummyEmail,
-    //   subject: mailData.subject,
-    //   html: mailData.html,
-    // });
-
-    const isDev = process.env.NODE_ENV !== "production";
-
     await transporter.sendMail({
       from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
-      to: isDev ? dummyEmail : recipient,
+      to: dummyEmail,
       subject: mailData.subject,
       html: mailData.html,
     });
