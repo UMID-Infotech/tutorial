@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -56,16 +56,28 @@ export default function ManageClasses() {
 
   const [editingClass, setEditingClass] = useState(null);
   const [deleteClassId, setDeleteClassId] = useState(null);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
-  const [selectedSubjectId, setSelectedSubjectId] = useState("");
-  const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [selectedVideoProvider, setSelectedVideoProvider] = useState("manual");
-  const [selectedPrivacy, setSelectedPrivacy] = useState("");
-  const [selectedReminderTime, setSelectedReminderTime] = useState("0");
-  const [videoLink, setVideoLink] = useState("");
+  useEffect(() => {
+    const timerId = setInterval(() => setNowTs(Date.now()), 30 * 1000);
+    return () => clearInterval(timerId);
+  }, []);
 
   const isEditMode = Boolean(editingClass);
+
+  const defaultFormValues = {
+    topic: "",
+    subjectId: "",
+    batchId: "",
+    teacherId: "",
+    date: "",
+    startTime: "",
+    duration: 60,
+    videoProvider: "manual",
+    privacy: "",
+    reminderTime: "0",
+    videoLink: "",
+  };
 
   const {
     register,
@@ -73,22 +85,78 @@ export default function ManageClasses() {
     reset,
     setValue,
     getValues,
+    watch,
     formState: { errors },
-  } = useForm();
+  } = useForm({ defaultValues: defaultFormValues });
 
   const tutors = tutorsData?.tutors || [];
   const subjects = subjectsData?.subjects || [];
   const batches = batchesData?.batches || [];
 
+  const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
+
+  const parseClassStartDateTime = (cls) => {
+    if (!cls?.date || !cls?.startTime) return null;
+
+    const datePart = String(cls.date).split("T")[0];
+    const baseDate = new Date(`${datePart}T00:00:00`);
+    if (Number.isNaN(baseDate.getTime())) return null;
+
+    const timeMatch = String(cls.startTime)
+      .trim()
+      .match(/^(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/);
+    if (!timeMatch) return null;
+
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[3]?.toUpperCase();
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+    if (meridiem) {
+      if (hours === 12) hours = 0;
+      if (meridiem === "PM") hours += 12;
+    }
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+    const startDateTime = new Date(baseDate);
+    startDateTime.setHours(hours, minutes, 0, 0);
+    return startDateTime;
+  };
+
+  const getJoinCutoffTime = (cls) => {
+    const startDateTime = parseClassStartDateTime(cls);
+    if (!startDateTime) return null;
+
+    const duration = Number(cls.duration);
+    const durationMinutes = Number.isFinite(duration) && duration > 0 ? duration : 0;
+    const graceMinutes = 15;
+    return new Date(startDateTime.getTime() + (durationMinutes + graceMinutes) * 60 * 1000);
+  };
+
+  const canShowOpenLink = (cls) => {
+    if (!cls?.videoLink) return false;
+
+    const status = normalizeStatus(cls.status);
+    if (status === "cancelled" || status === "completed") return false;
+
+    const cutoffTime = getJoinCutoffTime(cls);
+    if (!cutoffTime) return true;
+
+    return nowTs <= cutoffTime.getTime();
+  };
+
   const syncTeacherFromBatch = (batchId) => {
     const selectedBatch = batches.find((batch) => batch._id === batchId);
     if (!selectedBatch?.teacherId?._id) return;
     const teacherId = selectedBatch.teacherId._id;
-    setSelectedTeacherId(teacherId);
     setValue("teacherId", teacherId, { shouldValidate: true });
   };
 
   const handleGenerateMeeting = async () => {
+    const selectedVideoProvider = getValues("videoProvider");
+
     if (!["gmeet", "zoom"].includes(selectedVideoProvider)) {
       toast.error("Please select Google Meet or Zoom first");
       return;
@@ -122,7 +190,10 @@ export default function ManageClasses() {
       });
 
       if (res?.success) {
-        setVideoLink(res.meetLink || "");
+        setValue("videoLink", res.meetLink || "", {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
         toast.success(
           selectedVideoProvider === "zoom"
             ? "Zoom link generated!"
@@ -138,34 +209,27 @@ export default function ManageClasses() {
 
   const resetFormState = () => {
     setEditingClass(null);
-    setSelectedSubjectId("");
-    setSelectedBatchId("");
-    setSelectedTeacherId("");
-    setSelectedVideoProvider("manual");
-    setSelectedPrivacy("");
-    setSelectedReminderTime("0");
-    setVideoLink("");
-    reset();
+    reset(defaultFormValues);
   };
 
   const onSubmit = async (data) => {
-    if (!selectedSubjectId || !selectedBatchId || !selectedTeacherId) {
+    if (!data.subjectId || !data.batchId || !data.teacherId) {
       toast.error("Please select subject and batch");
       return;
     }
 
     const payload = {
       topic: data.topic,
-      subjectId: selectedSubjectId,
-      batchId: selectedBatchId,
-      teacherId: selectedTeacherId,
+      subjectId: data.subjectId,
+      batchId: data.batchId,
+      teacherId: data.teacherId,
       date: data.date,
       startTime: data.startTime,
       duration: Number(data.duration),
-      videoProvider: selectedVideoProvider,
-      videoLink,
-      privacy: selectedPrivacy || undefined,
-      reminderTime: Number(selectedReminderTime),
+      videoProvider: data.videoProvider,
+      videoLink: data.videoLink,
+      privacy: data.privacy || undefined,
+      reminderTime: Number(data.reminderTime ?? 0),
     };
 
     if (isEditMode) {
@@ -190,18 +254,20 @@ export default function ManageClasses() {
 
   const handleEdit = (cls) => {
     setEditingClass(cls);
-    setValue("topic", cls.topic || "");
-    setValue("date", cls.date || "");
-    setValue("startTime", cls.startTime || "");
-    setValue("duration", cls.duration || 60);
-
-    setSelectedSubjectId(cls.subjectId?._id || "");
-    setSelectedBatchId(cls.batchId?._id || "");
-    setSelectedTeacherId(cls.teacherId?._id || "");
-    setSelectedVideoProvider(cls.videoProvider || "manual");
-    setSelectedPrivacy(cls.privacy || "");
-    setSelectedReminderTime(String(cls.reminderTime ?? 0));
-    setVideoLink(cls.videoLink || "");
+    reset({
+      ...defaultFormValues,
+      topic: cls.topic || "",
+      subjectId: cls.subjectId?._id || "",
+      batchId: cls.batchId?._id || "",
+      teacherId: cls.teacherId?._id || "",
+      date: cls.date || "",
+      startTime: cls.startTime || "",
+      duration: cls.duration || 60,
+      videoProvider: cls.videoProvider || "manual",
+      privacy: cls.privacy || "",
+      reminderTime: String(cls.reminderTime ?? 0),
+      videoLink: cls.videoLink || "",
+    });
   };
 
   const handleStatusChange = async (cls, newStatus) => {
@@ -244,24 +310,12 @@ export default function ManageClasses() {
             onSubmit={onSubmit}
             register={register}
             handleSubmit={handleSubmit}
+            watch={watch}
+            setValue={setValue}
             errors={errors}
             tutors={tutors}
             subjects={subjects}
             batches={batches}
-            selectedSubjectId={selectedSubjectId}
-            setSelectedSubjectId={setSelectedSubjectId}
-            selectedBatchId={selectedBatchId}
-            setSelectedBatchId={setSelectedBatchId}
-            selectedTeacherId={selectedTeacherId}
-            setSelectedTeacherId={setSelectedTeacherId}
-            selectedVideoProvider={selectedVideoProvider}
-            setSelectedVideoProvider={setSelectedVideoProvider}
-            selectedPrivacy={selectedPrivacy}
-            setSelectedPrivacy={setSelectedPrivacy}
-            selectedReminderTime={selectedReminderTime}
-            setSelectedReminderTime={setSelectedReminderTime}
-            videoLink={videoLink}
-            setVideoLink={setVideoLink}
             isEditMode={isEditMode}
             isCreating={isCreating}
             isUpdating={isUpdating}
@@ -381,7 +435,7 @@ export default function ManageClasses() {
                               <DropdownMenuItem onClick={() => handleEdit(cls)}>
                                 Edit
                               </DropdownMenuItem>
-                              {cls.videoLink && cls.status !== "completed" && (
+                              {canShowOpenLink(cls) && (
                                 <DropdownMenuItem
                                   onClick={() =>
                                     window.open(cls.videoLink, "_blank")

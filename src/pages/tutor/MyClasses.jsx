@@ -95,10 +95,10 @@ export default function MyClasses() {
     if (!cls?.videoLink) return false;
 
     const status = normalizeStatus(cls.status);
-    if (status === "cancelled") return false;
+    if (status === "cancelled" || status === "completed") return false;
 
     const cutoffTime = getJoinCutoffTime(cls);
-    if (!cutoffTime) return status !== "completed";
+    if (!cutoffTime) return true;
 
     return nowTs <= cutoffTime.getTime();
   };
@@ -358,7 +358,7 @@ export default function MyClasses() {
                       <TableHead>Students</TableHead>
                       <TableHead>Schedule</TableHead>
                       <TableHead>Meeting</TableHead>
-                      <TableHead>Attendance</TableHead>
+                      <TableHead>Doubts</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -447,12 +447,9 @@ export default function MyClasses() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="bg-blue-600 hover:bg-blue-700 text-white border-0"
-                              onClick={() =>
-                                navigate(`/tutor/take-attendance/${cls._id}`)
-                              }
+                              onClick={() => navigate(`/tutor/class-doubts/${cls._id}`)}
                             >
-                              📝 {cls.hasAttendance ? "Update" : "Take"}
+                              View Doubts
                             </Button>
                           </TableCell>
                           <TableCell>

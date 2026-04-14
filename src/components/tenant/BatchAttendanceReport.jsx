@@ -34,10 +34,6 @@ const BatchAttendanceReport = () => {
     return Object.values(uniqueBatches);
   }, [classesData]);
 
-  const handleBatchChange = (batchId) => {
-    setSelectedBatch(batchId);
-  };
-
   const loading = isClassesLoading || (Boolean(selectedBatch) && isSummaryLoading);
   const error = isClassesError || isSummaryError
     ? 'Failed to load attendance data. Please try again.'
@@ -55,7 +51,7 @@ const BatchAttendanceReport = () => {
         <select
           id="batch-select"
           value={selectedBatch}
-          onChange={(e) => handleBatchChange(e.target.value)}
+          onChange={(e) => setSelectedBatch(e.target.value)}
           className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-slate-500 focus:outline-none"
         >
           <option value="">-- Choose a batch --</option>
