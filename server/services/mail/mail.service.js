@@ -98,8 +98,8 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
       html: mailData.html,
     });
 
-    console.log(`[Mail Service] ✅ Email sent successfully | type: ${type} | to: ${recipient} | messageId: ${info.messageId}`);
+    console.log(`[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | messageId: ${info.messageId}`);
   } catch (error) {
-    console.error(`[Mail Service] ❌ Email sending failed | type: ${type} | error: ${error.message}`);
+    console.error(`[Mail Service] ❌ Email failed | type: ${type} | error: ${error.message}`);
   }
 };
