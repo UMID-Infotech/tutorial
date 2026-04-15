@@ -24,15 +24,12 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { redirectByRole } from "@/utils/roleRedirect";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
-
 
 export default function Login() {
   const navigate = useNavigate();
   const hasGoogleClientId = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { mutate: forgotPassword } = useForgotPassword();
   const {
@@ -49,8 +46,10 @@ export default function Login() {
     try {
       setIsGoogleLoading(true);
       // console.log("Google Credential Response:", credentialResponse);
-      const response = await googleLoginMutation.mutateAsync(credentialResponse.credential);
-      
+      const response = await googleLoginMutation.mutateAsync(
+        credentialResponse.credential,
+      );
+
       // Check if user needs approval
       if (response?.data?.userStatus === "inactive" || !response?.data?.token) {
         toast.success("Registration successful! Awaiting admin approval.");
@@ -63,7 +62,7 @@ export default function Login() {
 
       login(response?.data?.token, response?.data?.user);
       toast.success("Google login successful!");
-      
+
       const userRole = response?.data?.user?.role;
       redirectByRole(userRole, navigate);
     } catch (error) {
@@ -83,7 +82,7 @@ export default function Login() {
         login(res?.data?.token, res?.data?.user);
 
         toast.success("Login successful!");
-
+        console.log("LOGIN RESPONSE:", res.data);
         // Redirect based on user role
         const userRole = res?.data?.user?.role;
         redirectByRole(userRole, navigate);
@@ -95,17 +94,19 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-   
-    forgotPassword({email}, {
-      onSuccess: () => {
-        toast.success("Check Your Email For Reset Link");
-        setOpen(false);
-        setEmail("");
+    forgotPassword(
+      { email },
+      {
+        onSuccess: () => {
+          toast.success("Check Your Email For Reset Link");
+          setOpen(false);
+          setEmail("");
+        },
+        onError: (err) => {
+          toast.error(err.response?.data?.message || "Forgot Password Fail");
+        },
       },
-      onError: (err) => {
-        toast.error(err.response?.data?.message || "Forgot Password Fail");
-      },
-    });
+    );
   };
 
   return (
@@ -141,45 +142,35 @@ export default function Login() {
             {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className={`bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500 pr-10
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                className={`bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500
                   focus-visible:ring-2 focus-visible:ring-slate-500
                   ${errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
-                  })}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-200"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 6,
+                    message: "Password must be at least 6 characters",
+                  },
+                })}
+              />
               {errors.password && (
                 <p className="text-red-500 text-sm">
                   {errors.password.message}
                 </p>
               )}
               <p className="text-left text-sm text-slate-400 mt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="hover:text-white transition"
-            >
-              Forgot Password
-            </button>
-          </p>
+                <button
+                  type="button"
+                  onClick={() => setOpen(true)}
+                  className="hover:text-white transition"
+                >
+                  Forgot Password
+                </button>
+              </p>
             </div>
 
             <Button
@@ -211,11 +202,14 @@ export default function Login() {
               />
             ) : (
               <p className="text-xs text-amber-300 text-center">
-                Google login is not configured. Add VITE_GOOGLE_CLIENT_ID in Client/.env.
+                Google login is not configured. Add VITE_GOOGLE_CLIENT_ID in
+                Client/.env.
               </p>
             )}
             {isGoogleLoading && (
-              <p className="text-xs text-slate-400">Signing in with Google...</p>
+              <p className="text-xs text-slate-400">
+                Signing in with Google...
+              </p>
             )}
           </div>
 
@@ -225,7 +219,6 @@ export default function Login() {
               Register
             </Link>
           </p>
-          
         </CardContent>
       </Card>
 
@@ -245,7 +238,6 @@ export default function Login() {
             <Input
               placeholder="you@example.com"
               value={email}
-              
               type="email"
               onChange={(e) => setEmail(e.target.value)}
               className="bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500
