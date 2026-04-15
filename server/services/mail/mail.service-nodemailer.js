@@ -1,5 +1,5 @@
 //server/services/mail/mail.service.js
-import resend from "../../configs/mail.config.js";
+import transporter from "../../configs/mail.config.js";
 import { MAIL_TYPES } from "./mail.constant.js";
 
 import { tenantRegisterAdminTemplate } from "../../templates/tenantRegisterAdmin.template.js";
@@ -14,11 +14,6 @@ import { classAssignedStudentTemplate } from "../../templates/classAssignedStude
 import { passwordResetTemplate } from "../../templates/passwordReset.template.js";
 import { classReminderStudentTemplate } from "../../templates/classReminderStudentTemplate.js";
 import { classReminderTutorTemplate } from "../../templates/classReminderTutorTemplate.js";
-
-// Use your verified Resend domain here.
-// Until you verify a domain, use: "onboarding@resend.dev" (only sends to your own email)
-// After verifying your domain: "Tutorial App <no-reply@yourdomain.com>"
-const FROM_EMAIL = process.env.FROM_EMAIL || "onboarding@resend.dev";
 
 export const sendTenantMail = async (type, tenant, options = {}) => {
   try {
@@ -96,18 +91,14 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
       throw new Error(`Recipient email is missing for mail type: ${type}`);
     }
 
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+    const info = await transporter.sendMail({
+      from: `"Tutorial App" <${process.env.EMAIL_USER}>`,
       to: recipient,
       subject: mailData.subject,
       html: mailData.html,
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    console.log(`[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | id: ${data.id}`);
+    console.log(`[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | messageId: ${info.messageId}`);
   } catch (error) {
     console.error(`[Mail Service] ❌ Email failed | type: ${type} | error: ${error.message}`);
   }

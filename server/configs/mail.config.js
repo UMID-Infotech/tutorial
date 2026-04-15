@@ -1,32 +1,13 @@
 //server/configs/mail.config.js
-import dotenv from "dotenv";
-dotenv.config();
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465, // Use 465 (SSL) instead of 587 (TLS) — Render free tier blocks 587
-  secure: true, // true for port 465
-  family: 4, // Force IPv4 — Render free tier blocks IPv6 SMTP
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Avoid TLS certificate issues on Render
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Verify transporter config on server start
-transporter.verify((error, success) => {
-  if (error) {
-    console.error(
-      "[Mail Config] ❌ Transporter verification failed:",
-      error.message,
-    );
-  } else {
-    console.log("[Mail Config] ✅ Mail transporter is ready to send emails");
-  }
-});
+// Verify on startup
+if (!process.env.RESEND_API_KEY) {
+  console.error("[Mail Config] ❌ RESEND_API_KEY is missing from environment variables");
+} else {
+  console.log("[Mail Config] ✅ Resend mail client initialized");
+}
 
-export default transporter;
+export default resend;
