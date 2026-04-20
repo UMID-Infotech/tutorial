@@ -26,6 +26,11 @@ import { useGetStudents } from "@/hooks/tenant/useGetStudents";
 import { useDeleteStudent } from "@/hooks/tenant/useDeleteStudent";
 import { useUpdateStudent } from "@/hooks/tenant/useUpdateStudent";
 import ConfirmActionDialog from "@/components/common/ConfirmActionDialog";
+import {
+  handleIndianMobileInput,
+  normalizeIndianMobileNumber,
+  validateIndianMobileNumber,
+} from "@/lib/phone";
 
 import { toast } from "sonner";
 
@@ -101,7 +106,7 @@ export default function AddStudent() {
     setValue("rollNumber", student.rollNumber || "");
     setValue("classLevel", student.classLevel || "");
     setValue("board", student.board || "");
-    setValue("phone", student.phone || "");
+    setValue("phone", normalizeIndianMobileNumber(student.phone || ""));
     setValue("parentName", student.parentName || "");
   };
 
@@ -131,7 +136,7 @@ export default function AddStudent() {
 
       <Card className="bg-white border border-slate-200 shadow-sm">
         <CardContent className="p-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
             <div>
               <Label>Name</Label>
               <Input
@@ -231,9 +236,18 @@ export default function AddStudent() {
             <div>
               <Label>Phone</Label>
               <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                autoComplete="tel-national"
                 placeholder="Phone number"
                 className="mt-1"
-                {...register("phone", { required: "Phone is required" })}
+                {...register("phone", {
+                  required: "Phone is required",
+                  setValueAs: normalizeIndianMobileNumber,
+                  validate: validateIndianMobileNumber,
+                })}
+                onInput={handleIndianMobileInput}
               />
               {errors.phone && (
                 <p className="text-xs text-red-500 mt-1">

@@ -35,6 +35,8 @@ import TutorStudents from "@/pages/tutor/Students";
 import TutorAttendancePage from "@/pages/tutor/TutorAttendancePage";
 import TakeAttendance from "@/pages/tutor/TakeAttendance";
 import TutorAttendanceReport from "@/pages/tutor/AttendanceReport";
+import TutorNotesPage from "@/pages/tutor/Notes";
+import ViewMaterialPage from "@/pages/tutor/ViewMaterial";
 
 //student pages
 import StudentLayout from "@/layouts/StudentLayout";
@@ -42,7 +44,9 @@ import StudentDashboard from "@/pages/student/StudentDashboard";
 import StudentProfile from "@/pages/student/Profile";
 import StudentClasses from "@/pages/student/StudentClasses";
 import StudentBatches from "@/pages/student/StudentBatches";
+import StudentMaterial from "@/pages/student/StudentMaterial";
 import StudentAttendancePage from "@/pages/student/StudentAttendancePage";
+import StudentNotesPage from "@/pages/student/StudentNotes";
 import ClassDoubtsPage from "@/pages/common/ClassDoubtsPage";
 import DoubtsHubPage from "@/pages/common/DoubtsHubPage";
 
@@ -106,6 +110,8 @@ function App() {
             <Route path="/tutor/batches" element={<TutorBatches />} />
             <Route path="/tutor/students" element={<TutorStudents />} />
             <Route path="/tutor/attendance-report" element={<TutorAttendanceReport />} />
+            <Route path="/tutor/notes" element={<TutorNotesPage />} />
+            <Route path="/tutor/view-material" element={<ViewMaterialPage />} />
             <Route path="/tutor/doubts" element={<DoubtsHubPage role="tutor" />} />
             <Route path="/tutor/class-doubts/:classId" element={<ClassDoubtsPage role="tutor" />} />
             <Route path="/tutor/profile" element={<TutorProfile />} />
@@ -121,7 +127,10 @@ function App() {
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/classes" element={<StudentClasses />} />
             <Route path="/student/batches" element={<StudentBatches />} />
+            <Route path="/student/material" element={<StudentMaterial />} />
+            <Route path="/student/material/:batchId" element={<StudentMaterial />} />
             <Route path="/student/attendance" element={<StudentAttendancePage />} />
+            <Route path="/student/notes" element={<StudentNotesPage />} />
             <Route path="/student/doubts" element={<DoubtsHubPage role="student" />} />
             <Route path="/student/class-doubts/:classId" element={<ClassDoubtsPage role="student" />} />
             <Route path="/student/profile" element={<StudentProfile />} />

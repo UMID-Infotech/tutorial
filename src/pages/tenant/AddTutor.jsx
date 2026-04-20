@@ -35,6 +35,11 @@ import { useDeleteTutor } from "@/hooks/tenant/useDeleteTutor";
 import { useUpdateTutor } from "@/hooks/tenant/useUpdateTutor";
 import { useGetSubjects } from "@/hooks/tenant/useGetSubjects";
 import ConfirmActionDialog from "@/components/common/ConfirmActionDialog";
+import {
+  handleIndianMobileInput,
+  normalizeIndianMobileNumber,
+  validateIndianMobileNumber,
+} from "@/lib/phone";
 
 import { toast } from "sonner";
 
@@ -103,7 +108,7 @@ export default function AddTutor() {
       return;
     }
 
-    const { confirmPassword, ...payload } = data;
+    const { confirmPassword: _confirmPassword, ...payload } = data;
 
     const res = await createTutor({
       ...payload,
@@ -122,7 +127,7 @@ export default function AddTutor() {
     setValue("email", tutor.email || "");
     setValue("password", "");
     setValue("experienceYears", tutor.experienceYears ?? 0);
-    setValue("phone", tutor.phone || "");
+    setValue("phone", normalizeIndianMobileNumber(tutor.phone || ""));
     setSelectedSubject(tutor.subjects?.[0] || "");
   };
 
@@ -160,7 +165,7 @@ export default function AddTutor() {
       {/* Add Tutor Form */}
       <Card className="bg-white border border-slate-200 shadow-sm">
         <CardContent className="p-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
             {/* Name */}
             <div>
               <Label>Name</Label>
@@ -316,11 +321,18 @@ export default function AddTutor() {
             <div>
               <Label>Phone</Label>
               <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                autoComplete="tel-national"
                 placeholder="Phone number"
                 className="mt-1"
                 {...register("phone", {
                   required: "Phone is required",
+                  setValueAs: normalizeIndianMobileNumber,
+                  validate: validateIndianMobileNumber,
                 })}
+                onInput={handleIndianMobileInput}
               />
               {errors.phone && (
                 <p className="text-xs text-red-500 mt-1">

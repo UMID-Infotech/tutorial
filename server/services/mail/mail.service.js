@@ -25,7 +25,9 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
     let mailData;
     let recipient;
 
-    console.log(`[Mail Service] Preparing email | type: ${type} | to: ${tenant?.email}`);
+    console.log(
+      `[Mail Service] Preparing email | type: ${type} | to: ${tenant?.email}`,
+    );
 
     switch (type) {
       case MAIL_TYPES.TENANT_REGISTER_ADMIN:
@@ -107,8 +109,12 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
       throw new Error(error.message);
     }
 
-    console.log(`[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | id: ${data.id}`);
+    console.log(
+      `[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | id: ${data.id}`,
+    );
   } catch (error) {
-    console.error(`[Mail Service] ❌ Email failed | type: ${type} | error: ${error.message}`);
+    console.error(
+      `[Mail Service] ❌ Email failed | type: ${type} | error: ${error.message}`,
+    );
   }
 };

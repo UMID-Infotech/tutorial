@@ -3,6 +3,12 @@ import { useUpdateProfile } from "@/hooks/tutor/useUpdateProfile";
 import { useGetProfile } from "@/hooks/tutor/useGetProfile";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { resolveMediaUrl } from "@/lib/media";
+import {
+  handleIndianMobileInput,
+  normalizeIndianMobileNumber,
+  validateIndianMobileNumber,
+} from "@/lib/phone";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
@@ -11,7 +17,12 @@ const Profile = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
-  const { register, handleSubmit, reset } = useForm({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       name: "",
       email: "",
@@ -34,16 +45,14 @@ const Profile = () => {
       reset({
         name: profileUser.name || "",
         email: profileUser.email || "",
-        phone: profileData?.profile?.phone || "",
+        phone: normalizeIndianMobileNumber(profileData?.profile?.phone || ""),
         subjects: profileData?.profile?.subjects?.join(", ") || "",
         experienceYears: profileData?.profile?.experienceYears ?? 0,
         newPassword: "",
         confirmPassword: "",
       });
       setPreview(
-        profileUser?.profileImage
-          ? `http://localhost:4000${profileUser.profileImage}`
-          : "/avatar-holder.avif"
+        resolveMediaUrl(profileUser?.profileImage)
       );
     }
   }, [profileData, user, reset]);
@@ -69,7 +78,9 @@ const Profile = () => {
 
     formData.append("name", values.name);
     formData.append("email", values.email);
-    formData.append("phone", values.phone || "");
+    if (values.phone) {
+      formData.append("phone", values.phone);
+    }
     formData.append("subjects", values.subjects || "");
     formData.append("experienceYears", values.experienceYears ?? 0);
 
@@ -135,7 +146,7 @@ const Profile = () => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-slate-700">
@@ -163,9 +174,20 @@ const Profile = () => {
               Phone
             </label>
             <input
-              {...register("phone")}
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              autoComplete="tel-national"
+              {...register("phone", {
+                setValueAs: normalizeIndianMobileNumber,
+                validate: validateIndianMobileNumber,
+              })}
+              onInput={handleIndianMobileInput}
               className="mt-1 w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.phone && (
+              <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>
+            )}
           </div>
 
           <div>
