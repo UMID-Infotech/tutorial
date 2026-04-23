@@ -1,13 +1,13 @@
-import dotenv from "dotenv";
-dotenv.config();
-import nodemailer from "nodemailer";
+//server/configs/mail.config.js
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.FROM_EMAIL || process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-export default transporter;
+// Verify on startup
+if (!process.env.RESEND_API_KEY) {
+  console.error("[Mail Config] ❌ RESEND_API_KEY is missing from environment variables");
+} else {
+  console.log("[Mail Config] ✅ Resend mail client initialized");
+}
+
+export default resend;

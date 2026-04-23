@@ -38,7 +38,6 @@ app.use(
     credentials: true,
   })
 );
-
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Backward compatibility for legacy image paths stored as /uploads/<filename>
