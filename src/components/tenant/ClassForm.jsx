@@ -20,6 +20,7 @@ export default function ClassForm({
   subjects,
   batches,
   isEditMode,
+  editingClass,
   isCreating,
   isUpdating,
   syncTeacherFromBatch,
@@ -36,8 +37,11 @@ export default function ClassForm({
   const videoLink = watch("videoLink") || "";
   
   const activeSubjects = subjects.filter((s) => s.status === "active");
+  const availableSubjects = isEditMode ? subjects : activeSubjects;
 
   const filteredBatches = batches.filter((batch) => {
+    // In edit mode, keep the currently selected batch even if inactive
+    if (isEditMode && batch._id === selectedBatchId) return true;
     if (batch.status !== "active") return false;
     if (!selectedSubjectId) return true;
     return batch.subjectId?._id === selectedSubjectId;
@@ -74,6 +78,7 @@ export default function ClassForm({
           {...register("subjectId", { required: "Subject is required" })}
         />
         <Select
+          key={`class-subject-${editingClass?._id || "new"}`}
           value={selectedSubjectId}
           onValueChange={(value) => {
             setValue("subjectId", value, { shouldValidate: true, shouldDirty: true });
@@ -85,11 +90,17 @@ export default function ClassForm({
             <SelectValue placeholder="Select subject" />
           </SelectTrigger>
           <SelectContent>
-            {activeSubjects.map((subject) => (
-              <SelectItem key={subject._id} value={subject._id}>
-                {subject.name}
-              </SelectItem>
-            ))}
+            {availableSubjects.length > 0 ? (
+              availableSubjects.map((subject) => (
+                <SelectItem key={subject._id} value={subject._id}>
+                  {subject.name}
+                </SelectItem>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                No subjects available. Add a subject first.
+              </div>
+            )}
           </SelectContent>
         </Select>
         {errors.subjectId && <p className="text-red-500 text-xs">{errors.subjectId.message}</p>}
@@ -103,6 +114,7 @@ export default function ClassForm({
           {...register("batchId", { required: "Batch is required" })}
         />
         <Select
+          key={`class-batch-${editingClass?._id || "new"}-${selectedSubjectId}`}
           value={selectedBatchId}
           onValueChange={(value) => {
             setValue("batchId", value, { shouldValidate: true, shouldDirty: true });
@@ -113,11 +125,19 @@ export default function ClassForm({
             <SelectValue placeholder="Select batch" />
           </SelectTrigger>
           <SelectContent>
-            {filteredBatches.map((batch) => (
-              <SelectItem key={batch._id} value={batch._id}>
-                {batch.name}
-              </SelectItem>
-            ))}
+            {filteredBatches.length > 0 ? (
+              filteredBatches.map((batch) => (
+                <SelectItem key={batch._id} value={batch._id}>
+                  {batch.name}
+                </SelectItem>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                {selectedSubjectId
+                  ? "No batch available for this subject. Create a batch first."
+                  : "Select a subject first"}
+              </div>
+            )}
           </SelectContent>
         </Select>
         {errors.batchId && <p className="text-red-500 text-xs">{errors.batchId.message}</p>}
@@ -131,8 +151,11 @@ export default function ClassForm({
           className="mt-1"
           readOnly
           value={
-            tutors.find((t) => t.tutorId === selectedTeacherId)?.name ||
-            "Auto-selected from batch"
+            tutors.find(
+              (t) =>
+                t.tutorId === selectedTeacherId ||
+                t._id === selectedTeacherId,
+            )?.name || "Auto-selected from batch"
           }
         />
       </div>
@@ -170,7 +193,7 @@ export default function ClassForm({
       <div>
         <Label>Video Provider</Label>
         <input type="hidden" {...register("videoProvider")} />
-        <Select value={selectedVideoProvider} onValueChange={handleVideoProviderChange}>
+        <Select key={`class-provider-${editingClass?._id || "new"}`} value={selectedVideoProvider} onValueChange={handleVideoProviderChange}>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="Select provider" />
           </SelectTrigger>

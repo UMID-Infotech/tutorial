@@ -172,7 +172,7 @@ export const deleteTutor = async (req, res) => {
 export const updateTutor = async (req, res) => {
   try {
     const { tutorId } = req.params;
-    const { name, email, subjects, experienceYears, phone, status } = req.body;
+    const { name, email, password, subjects, experienceYears, phone, status } = req.body;
     const tenantId = req.user.tenantId;
 
     const tutorProfile = await Tutor.findOne({
@@ -226,6 +226,15 @@ export const updateTutor = async (req, res) => {
     }
 
     if (name !== undefined) tutorUser.name = name;
+
+    // Handle optional password change
+    if (password !== undefined && password !== "") {
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      tutorUser.passwordHash = await bcrypt.hash(password, 10);
+    }
+
     await tutorUser.save();
 
     if (normalizedSubjects) tutorProfile.subjects = normalizedSubjects;
@@ -268,7 +277,8 @@ export const registerStudent = async (req, res) => {
       classLevel,
       board,
       phone,
-      parentName,
+      fatherName,
+      motherName,
     } = req.body;
     const tenantId = req.user.tenantId;
 
@@ -279,12 +289,11 @@ export const registerStudent = async (req, res) => {
       !rollNumber ||
       !classLevel ||
       !board ||
-      !phone ||
-      !parentName
+      !phone
     ) {
       return res.status(400).json({
         message:
-          "name, email, password, rollNumber, classLevel, board, phone and parentName are required",
+          "name, email, password, rollNumber, classLevel, board and phone are required",
       });
     }
 
@@ -317,7 +326,8 @@ export const registerStudent = async (req, res) => {
       classLevel,
       board,
       phone,
-      parentName,
+      fatherName,
+      motherName,
       status: "active",
     });
 
@@ -339,7 +349,8 @@ export const registerStudent = async (req, res) => {
         classLevel: studentProfile.classLevel,
         board: studentProfile.board,
         phone: studentProfile.phone,
-        parentName: studentProfile.parentName,
+        fatherName: studentProfile.fatherName,
+        motherName: studentProfile.motherName,
         status: studentProfile.status,
       },
     });
@@ -371,7 +382,8 @@ export const getStudentsByTenant = async (req, res) => {
         classLevel: profile.classLevel,
         board: profile.board,
         phone: profile.phone,
-        parentName: profile.parentName,
+        fatherName: profile.fatherName,
+        motherName: profile.motherName,
         createdAt: profile.createdAt,
       }));
 
@@ -419,11 +431,13 @@ export const updateStudent = async (req, res) => {
     const {
       name,
       email,
+      password,
       rollNumber,
       classLevel,
       board,
       phone,
-      parentName,
+      fatherName,
+      motherName,
       status,
     } = req.body;
     const tenantId = req.user.tenantId;
@@ -454,6 +468,15 @@ export const updateStudent = async (req, res) => {
     }
 
     if (name !== undefined) studentUser.name = name;
+
+    // Handle optional password change
+    if (password !== undefined && password !== "") {
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      studentUser.passwordHash = await bcrypt.hash(password, 10);
+    }
+
     await studentUser.save();
 
     if (rollNumber !== undefined) studentProfile.rollNumber = rollNumber;
@@ -468,7 +491,8 @@ export const updateStudent = async (req, res) => {
 
       studentProfile.phone = phone;
     }
-    if (parentName !== undefined) studentProfile.parentName = parentName;
+    if (fatherName !== undefined) studentProfile.fatherName = fatherName;
+    if (motherName !== undefined) studentProfile.motherName = motherName;
     if (status !== undefined) studentProfile.status = status;
 
     await studentProfile.save();
@@ -486,7 +510,8 @@ export const updateStudent = async (req, res) => {
         classLevel: studentProfile.classLevel,
         board: studentProfile.board,
         phone: studentProfile.phone,
-        parentName: studentProfile.parentName,
+        fatherName: studentProfile.fatherName,
+        motherName: studentProfile.motherName,
       },
     });
   } catch (error) {
@@ -500,7 +525,7 @@ export const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const tenantId = req.user.tenantId;
 
-    const { name, email, tenantName, password } = req.body;
+    const { name, email, tenantName, password, phone, address } = req.body;
 
     const user = await User.findById(userId);
 
@@ -517,6 +542,7 @@ export const updateProfile = async (req, res) => {
     }
 
     if (name) user.name = name;
+    if (phone !== undefined) user.phone = phone;
 
     if (password !== undefined && password !== "") {
       if (password.length < 6) {
@@ -533,8 +559,9 @@ export const updateProfile = async (req, res) => {
     let tenantProfile = null;
     if (tenantId) {
       tenantProfile = await Tenant.findById(tenantId);
-      if (tenantProfile && tenantName !== undefined) {
-        tenantProfile.name = tenantName;
+      if (tenantProfile) {
+        if (tenantName !== undefined) tenantProfile.name = tenantName;
+        if (address !== undefined) tenantProfile.address = address;
         await tenantProfile.save();
       }
     }
@@ -552,6 +579,7 @@ export const updateProfile = async (req, res) => {
             tenantName: tenantProfile.name,
             plan: tenantProfile.plan,
             status: tenantProfile.status,
+            address: tenantProfile.address || "",
           }
         : null,
     });
@@ -581,6 +609,7 @@ export const getProfile = async (req, res) => {
           tenantName: tenant.name,
           plan: tenant.plan,
           status: tenant.status,
+          address: tenant.address || "",
         };
       }
     }

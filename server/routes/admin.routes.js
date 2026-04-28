@@ -6,13 +6,16 @@ import {
   approveTenant,
   makeTenantInactive,
   blockTenant,
+  deleteTenant,
   getPendingTenants,
+  getNewPendingTenants,
   getAllTenants,
   getOnlineUsers,
   updateProfile,
   getProfile,
   getAllTutors,
   getAllStudents,
+  getStudentDetails,
   getAllBatches
 } from "../controllers/admin.controller.js";
 
@@ -47,6 +50,14 @@ router.get(
   getPendingTenants
 );
 
+// Get new pending tenants (never reviewed)
+router.get(
+  "/tenants/new-pending",
+  authMiddleware,
+  authorizeRoles("superadmin"),
+  getNewPendingTenants
+);
+
 // Approve tenant
 router.patch(
   "/tenants/:id/approve",
@@ -70,6 +81,14 @@ router.patch(
   authMiddleware,
   authorizeRoles("superadmin"),
   blockTenant
+);
+
+// Delete tenant
+router.delete(
+  "/tenants/:id",
+  authMiddleware,
+  authorizeRoles("superadmin"),
+  deleteTenant
 );
 
 //update profile
@@ -105,6 +124,14 @@ router.get(
   authMiddleware,
   authorizeRoles("superadmin"),
   getAllStudents
+);
+
+// Get student details
+router.get(
+  "/student/:studentId",
+  authMiddleware,
+  authorizeRoles("superadmin"),
+  getStudentDetails
 );
 
 // Get all batches

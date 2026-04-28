@@ -30,6 +30,31 @@ export const getPendingTenants = async (req, res) => {
 };
 
 /**
+ * Get new pending tenants (never reviewed by admin)
+ */
+export const getNewPendingTenants = async (req, res) => {
+  try {
+    const tenants = await Tenant.find({
+      status: "inactive",
+      statusChangedOnce: { $ne: true },
+    })
+      .populate("ownerUserId", "name email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      message: "New pending tenants fetched successfully",
+      tenants,
+      count: tenants.length,
+    });
+  } catch (error) {
+    console.error("Get New Pending Tenants Error:", error);
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+/**
  * Get all tenants (Admin Dashboard with pagination)
  */
 export const getAllTenants = async (req, res) => {
@@ -89,6 +114,7 @@ export const approveTenant = async (req, res) => {
     }
 
     tenant.status = "active";
+    tenant.statusChangedOnce = true;
     await tenant.save();
 
     await User.findByIdAndUpdate(tenant.ownerUserId._id, { status: "active" });
@@ -130,6 +156,7 @@ export const blockTenant = async (req, res) => {
     }
 
     tenant.status = "blocked";
+    tenant.statusChangedOnce = true;
     await tenant.save();
 
     await User.findByIdAndUpdate(tenant.ownerUserId._id, { status: "blocked" });
@@ -177,6 +204,7 @@ export const makeTenantInactive = async (req, res) => {
     }
 
     tenant.status = "inactive";
+    tenant.statusChangedOnce = true;
     await tenant.save();
 
     await User.findByIdAndUpdate(tenant.ownerUserId._id, {
@@ -195,6 +223,41 @@ export const makeTenantInactive = async (req, res) => {
     });
   } catch (error) {
     console.error("Make Tenant Inactive Error:", error);
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+/**
+ * Delete Tenant
+ */
+export const deleteTenant = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const tenant = await Tenant.findById(id).populate(
+      "ownerUserId",
+      "name email"
+    );
+
+    if (!tenant) {
+      return res.status(404).json({
+        message: "Tenant not found",
+      });
+    }
+
+    if (tenant.ownerUserId) {
+      await User.findByIdAndDelete(tenant.ownerUserId._id || tenant.ownerUserId);
+    }
+
+    await Tenant.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: "Tenant deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete Tenant Error:", error);
     return res.status(500).json({
       message: "Server Error",
     });
@@ -361,6 +424,50 @@ export const getAllStudents = async (req, res) => {
     });
   } catch (error) {
     console.error("Get All Students Error:", error);
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+/**
+ * Get student details by ID
+ */
+export const getStudentDetails = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Student.findById(studentId)
+      .populate("userId", "name email")
+      .populate("tenantId", "name");
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student not found",
+      });
+    }
+
+    // Get batches for this student
+    const batches = await Batch.find({
+      studentIds: studentId,
+    })
+      .populate("subjectId", "name")
+      .select("name subjectId");
+
+    const studentWithBatches = {
+      ...student.toObject(),
+      batches: batches.map((batch) => ({
+        _id: batch._id,
+        name: batch.name,
+        subject: batch.subjectId?.name || "N/A",
+      })),
+    };
+
+    return res.status(200).json({
+      student: studentWithBatches,
+    });
+  } catch (error) {
+    console.error("Get Student Details Error:", error);
     return res.status(500).json({
       message: "Server Error",
     });

@@ -29,6 +29,17 @@ const tenantSchema = new Schema(
       enum: ["free", "pro", "enterprise"],
       default: "free",
     },
+
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    statusChangedOnce: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

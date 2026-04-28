@@ -1,5 +1,6 @@
 //server/services/mail/mail.service.js
-import resend from "../../configs/mail.config.js";
+import transporter from "../../configs/mail.config.js";
+import resend from "../../configs/resend.config.js";
 import { MAIL_TYPES } from "./mail.constant.js";
 
 import { tenantRegisterAdminTemplate } from "../../templates/tenantRegisterAdmin.template.js";
@@ -15,19 +16,65 @@ import { passwordResetTemplate } from "../../templates/passwordReset.template.js
 import { classReminderStudentTemplate } from "../../templates/classReminderStudentTemplate.js";
 import { classReminderTutorTemplate } from "../../templates/classReminderTutorTemplate.js";
 
-// Use your verified Resend domain here.
-// Until you verify a domain, use: "onboarding@resend.dev" (only sends to your own email)
-// After verifying your domain: "Tutorial App <no-reply@yourdomain.com>"
-const FROM_EMAIL = process.env.FROM_EMAIL || "onboarding@resend.dev";
+const MAIL_PROVIDER = (process.env.MAIL_PROVIDER || "nodemailer").toLowerCase();
+const RESEND_DUMMY_MAIL = process.env.RESEND_DUMMY_MAIL || "savaraakshay2366@gmail.com";
+
+const getFromEmail = () => {
+  return process.env.FROM_EMAIL || process.env.EMAIL_USER;
+};
+
+const sendWithProvider = async ({ to, subject, html }) => {
+  const fromEmail = getFromEmail();
+
+  if (!fromEmail) {
+    throw new Error("Missing sender email. Set FROM_EMAIL (or EMAIL_USER) in env.");
+  }
+
+  if (MAIL_PROVIDER === "resend") {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("MAIL_PROVIDER is resend but RESEND_API_KEY is not set.");
+    }
+
+    // Route all Resend traffic to a single inbox for safe testing.
+    const resendRecipient = RESEND_DUMMY_MAIL;
+
+    const { error } = await resend.emails.send({
+      from: `Tutorial App <${fromEmail}>`,
+      to: resendRecipient,
+      subject,
+      html,
+    });
+
+    if (error) {
+      throw new Error(error.message || "Resend failed to send email.");
+    }
+
+    return {
+      deliveredTo: resendRecipient,
+      originalTo: to,
+    };
+  }
+
+  const info = await transporter.sendMail({
+    from: `"Tutorial App" <${fromEmail}>`,
+    to,
+    subject,
+    html,
+  });
+
+  return {
+    messageId: info.messageId,
+    deliveredTo: to,
+    originalTo: to,
+  };
+};
 
 export const sendTenantMail = async (type, tenant, options = {}) => {
   try {
     let mailData;
     let recipient;
 
-    console.log(
-      `[Mail Service] Preparing email | type: ${type} | to: ${tenant?.email}`,
-    );
+    console.log(`[Mail Service] Preparing email | type: ${type} | to: ${tenant?.email}`);
 
     switch (type) {
       case MAIL_TYPES.TENANT_REGISTER_ADMIN:
@@ -98,23 +145,18 @@ export const sendTenantMail = async (type, tenant, options = {}) => {
       throw new Error(`Recipient email is missing for mail type: ${type}`);
     }
 
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+    const deliveryResult = await sendWithProvider({
       to: recipient,
       subject: mailData.subject,
       html: mailData.html,
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
     console.log(
-      `[Mail Service] ✅ Email sent | type: ${type} | to: ${recipient} | id: ${data.id}`,
+      `[Mail Service] ✅ Email sent successfully | provider: ${MAIL_PROVIDER} | type: ${type} | to: ${deliveryResult?.deliveredTo || recipient} | originalTo: ${deliveryResult?.originalTo || recipient}${
+        deliveryResult?.messageId ? ` | messageId: ${deliveryResult.messageId}` : ""
+      }`,
     );
   } catch (error) {
-    console.error(
-      `[Mail Service] ❌ Email failed | type: ${type} | error: ${error.message}`,
-    );
+    console.error(`[Mail Service] ❌ Email sending failed | type: ${type} | error: ${error.message}`);
   }
 };

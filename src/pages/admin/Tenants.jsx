@@ -55,6 +55,7 @@ export default function Tenants() {
     isError,
     handleApprove,
     handleBlock,
+    handleDelete,
     handleInactive,
     isActionLoading,
   } = usePendingTenants(currentPage);
@@ -78,8 +79,11 @@ export default function Tenants() {
     if (pendingAction === "inactive") {
       handleInactive(selectedTenantId);
     }
-    if (pendingAction === "block") {
+    if (pendingAction === "suspend") {
       handleBlock(selectedTenantId);
+    }
+    if (pendingAction === "delete") {
+      handleDelete(selectedTenantId);
     }
 
     closeConfirmDialog();
@@ -87,19 +91,24 @@ export default function Tenants() {
 
   const confirmCopy = {
     approve: {
-      title: "Approve tenant?",
-      description: "This will activate the tenant account and allow dashboard access.",
+      title: "Approve center?",
+      description: "This will activate the center account and allow dashboard access.",
       confirmText: "Approve",
     },
     inactive: {
-      title: "Mark tenant as inactive?",
-      description: "The tenant account will be disabled until reactivated.",
+      title: "Mark center as inactive?",
+      description: "The center account will be disabled until reactivated.",
       confirmText: "Mark Inactive",
     },
-    block: {
-      title: "Block tenant?",
-      description: "This will block the tenant account and restrict access immediately.",
-      confirmText: "Block",
+    suspend: {
+      title: "Suspend center?",
+      description: "This will suspend the center account and restrict access immediately.",
+      confirmText: "Suspend",
+    },
+    delete: {
+      title: "Delete center?",
+      description: "This will permanently remove the center account.",
+      confirmText: "Delete",
     },
   };
 
@@ -124,14 +133,14 @@ export default function Tenants() {
 
     return tuitionNameMatch && emailMatch && planMatch && statusMatch;
   });
-  
+
 
   if (isLoading) return <Loader />;
 
   if (isError) {
     return (
       <div className="p-4 sm:p-6">
-        <p className="text-red-500">Failed to load tenants</p>
+        <p className="text-red-500">Failed to load centers</p>
       </div>
     );
   }
@@ -141,7 +150,7 @@ export default function Tenants() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-bold">
-            Tenants
+            Centers
           </CardTitle>
         </CardHeader>
 
@@ -192,7 +201,7 @@ export default function Tenants() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
+                    <SelectItem value="blocked">Suspended</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -217,11 +226,11 @@ export default function Tenants() {
 
           {tenants.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              No Tenants
+              No Centers
             </div>
           ) : filteredTenants.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              No tenants match the filters
+              No centers match the filters
             </div>
           ) : (
             <>
@@ -229,8 +238,8 @@ export default function Tenants() {
                 <Table className="min-w-200">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tuition Name</TableHead>
-                      <TableHead>Owner Name</TableHead>
+                      <TableHead>Institute Name</TableHead>
+                      <TableHead>Owner</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Plan</TableHead>
                       <TableHead>Status</TableHead>
@@ -259,15 +268,14 @@ export default function Tenants() {
 
                         <TableCell>
                           <span
-                            className={`px-3 py-1 text-xs rounded-full font-medium ${
-                              tenant.status === "inactive"
+                            className={`px-3 py-1 text-xs rounded-full font-medium ${tenant.status === "inactive"
                                 ? "bg-yellow-100 text-yellow-800"
                                 : tenant.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
                           >
-                            {tenant.status}
+                            {tenant.status === "blocked" ? "Suspended" : tenant.status}
                           </span>
                         </TableCell>
 
@@ -280,7 +288,7 @@ export default function Tenants() {
                                 size="sm"
                                 disabled={isActionLoading}
                               >
-                                {tenant.status}
+                                {tenant.status === "blocked" ? "Suspended" : tenant.status}
                               </Button>
                             </DropdownMenuTrigger>
 
@@ -297,10 +305,16 @@ export default function Tenants() {
                               </DropdownMenuItem>
 
                               <DropdownMenuItem
-                                onClick={() => openConfirmDialog(tenant._id, "block")}
+                                onClick={() => openConfirmDialog(tenant._id, "suspend")}
                                 className="text-red-600"
                               >
-                                Block
+                                Suspend
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openConfirmDialog(tenant._id, "delete")}
+                                className="text-red-600"
+                              >
+                                Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -311,7 +325,7 @@ export default function Tenants() {
                 </Table>
               </div>
 
-              
+
               {totalPages > 1 && (
                 <Pagination className="mt-6">
                   <PaginationContent>
