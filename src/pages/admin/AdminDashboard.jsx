@@ -310,7 +310,7 @@ const AdminDashboard = () => {
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              New Pending Centers
+              Approval required
             </CardTitle>
           </CardHeader>
 
