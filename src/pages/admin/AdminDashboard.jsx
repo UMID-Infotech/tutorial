@@ -11,12 +11,7 @@ import {
 } from "@/services/admin.api";
 import toast from "react-hot-toast";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
   Table,
@@ -68,7 +63,9 @@ const AdminDashboard = () => {
   const invalidatePendingQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["new-pending-tenants"] });
     queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
-    queryClient.invalidateQueries({ queryKey: ["all-tenants", "inactive-count"] });
+    queryClient.invalidateQueries({
+      queryKey: ["all-tenants", "inactive-count"],
+    });
   };
 
   const approveMutation = useMutation({
@@ -138,12 +135,14 @@ const AdminDashboard = () => {
   const confirmCopy = {
     approve: {
       title: "Approve center?",
-      description: "This will activate the center account and allow dashboard access.",
+      description:
+        "This will activate the center account and allow dashboard access.",
       confirmText: "Approve",
     },
     suspend: {
       title: "Suspend center?",
-      description: "This will suspend the center account and restrict access immediately.",
+      description:
+        "This will suspend the center account and restrict access immediately.",
       confirmText: "Suspend",
     },
     delete: {
@@ -157,26 +156,35 @@ const AdminDashboard = () => {
 
   // --- Existing dashboard state ---
   const [activeTable, setActiveTable] = useState(null);
-  const { control: usersControl, watch: watchUsers, reset: resetUsers } = useForm({
+  const {
+    control: usersControl,
+    watch: watchUsers,
+    reset: resetUsers,
+  } = useForm({
     defaultValues: {
       roleFilter: "all",
       sortFilter: "name-asc",
-      searchTerm: ""
-    }
+      searchTerm: "",
+    },
   });
 
-  const { control: batchesControl, watch: watchBatches, reset: resetBatches } = useForm({
+  const {
+    control: batchesControl,
+    watch: watchBatches,
+    reset: resetBatches,
+  } = useForm({
     defaultValues: {
       batchStatusFilter: "all",
       batchSortFilter: "name-asc",
-      batchSearchTerm: ""
-    }
+      batchSearchTerm: "",
+    },
   });
 
   const usersFilters = watchUsers();
   const batchesFilters = watchBatches();
   const { roleFilter, sortFilter, searchTerm } = usersFilters;
-  const { batchStatusFilter, batchSortFilter, batchSearchTerm } = batchesFilters;
+  const { batchStatusFilter, batchSortFilter, batchSearchTerm } =
+    batchesFilters;
 
   const users = data?.data?.data || [];
   const batches = batchesData?.data?.batches || [];
@@ -184,7 +192,6 @@ const AdminDashboard = () => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const normalizedBatchSearch = batchSearchTerm.trim().toLowerCase();
 
-  
   const filteredUsers = [...users]
     .filter((u) => u.role !== "superadmin")
     .filter((u) => (roleFilter === "all" ? true : u.role === roleFilter))
@@ -192,9 +199,15 @@ const AdminDashboard = () => {
       if (!normalizedSearch) return true;
 
       return (
-        String(u.name || "").toLowerCase().includes(normalizedSearch) ||
-        String(u.email || "").toLowerCase().includes(normalizedSearch) ||
-        String(u.role || "").toLowerCase().includes(normalizedSearch)
+        String(u.name || "")
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        String(u.email || "")
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        String(u.role || "")
+          .toLowerCase()
+          .includes(normalizedSearch)
       );
     })
     .sort((a, b) => {
@@ -212,7 +225,9 @@ const AdminDashboard = () => {
       if (!normalizedBatchSearch) return true;
 
       return (
-        String(batch.name || "").toLowerCase().includes(normalizedBatchSearch) ||
+        String(batch.name || "")
+          .toLowerCase()
+          .includes(normalizedBatchSearch) ||
         String(batch.tenantId?.name || "")
           .toLowerCase()
           .includes(normalizedBatchSearch) ||
@@ -225,7 +240,9 @@ const AdminDashboard = () => {
       );
     })
     .filter((batch) =>
-      batchStatusFilter === "all" ? true : String(batch.status || "") === batchStatusFilter
+      batchStatusFilter === "all"
+        ? true
+        : String(batch.status || "") === batchStatusFilter,
     )
     .sort((a, b) => {
       if (batchSortFilter === "name-desc") {
@@ -243,7 +260,7 @@ const AdminDashboard = () => {
     resetUsers({
       roleFilter: "all",
       sortFilter: "name-asc",
-      searchTerm: ""
+      searchTerm: "",
     });
   };
 
@@ -251,21 +268,17 @@ const AdminDashboard = () => {
     resetBatches({
       batchStatusFilter: "all",
       batchSortFilter: "name-asc",
-      batchSearchTerm: ""
+      batchSearchTerm: "",
     });
   };
 
   return (
     <div className="w-full p-4 space-y-6">
-
       {/* Page Title */}
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Dashboard
-      </h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-
         <Card
           onClick={() =>
             setActiveTable((prev) => (prev === "users" ? null : "users"))
@@ -279,9 +292,7 @@ const AdminDashboard = () => {
           </CardHeader>
 
           <CardContent>
-            <div className="text-3xl font-bold">
-              {filteredUsers.length}
-            </div>
+            <div className="text-3xl font-bold">{filteredUsers.length}</div>
           </CardContent>
         </Card>
 
@@ -310,7 +321,7 @@ const AdminDashboard = () => {
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              New Pending Centers
+              Approval Required
             </CardTitle>
           </CardHeader>
 
@@ -320,18 +331,16 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-
       </div>
 
       {/* ===== New Pending Centers Table ===== */}
       {activeTable === "pending" && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              New Pending Centers
-            </CardTitle>
+            <CardTitle className="text-base">New Pending Centers</CardTitle>
             <p className="text-sm text-muted-foreground">
-              These centers have just registered and need review. Once you take any action, they will disappear from here.
+              These centers have just registered and need review. Once you take
+              any action, they will disappear from here.
             </p>
           </CardHeader>
 
@@ -375,7 +384,9 @@ const AdminDashboard = () => {
 
                         <TableCell>
                           <span className="px-3 py-1 text-xs rounded-full font-medium bg-yellow-100 text-yellow-800">
-                            {tenant.status === "blocked" ? "Suspended" : tenant.status}
+                            {tenant.status === "blocked"
+                              ? "Suspended"
+                              : tenant.status}
                           </span>
                         </TableCell>
 
@@ -394,20 +405,26 @@ const AdminDashboard = () => {
 
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => openConfirmDialog(tenant._id, "approve")}
+                                onClick={() =>
+                                  openConfirmDialog(tenant._id, "approve")
+                                }
                               >
                                 Approve
                               </DropdownMenuItem>
 
                               <DropdownMenuItem
-                                onClick={() => openConfirmDialog(tenant._id, "suspend")}
+                                onClick={() =>
+                                  openConfirmDialog(tenant._id, "suspend")
+                                }
                                 className="text-red-600"
                               >
                                 Suspend
                               </DropdownMenuItem>
 
                               <DropdownMenuItem
-                                onClick={() => openConfirmDialog(tenant._id, "delete")}
+                                onClick={() =>
+                                  openConfirmDialog(tenant._id, "delete")
+                                }
                                 className="text-red-600"
                               >
                                 Delete
@@ -428,13 +445,9 @@ const AdminDashboard = () => {
       {/* ===== Online Users Table ===== */}
       {activeTable === "users" && (
         <Card>
-
           <CardHeader className="space-y-4">
-
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
-                Online Users
-              </CardTitle>
+              <CardTitle className="text-base">Online Users</CardTitle>
               <Button type="button" variant="outline" onClick={clearFilters}>
                 Reset Filters
               </Button>
@@ -485,19 +498,15 @@ const AdminDashboard = () => {
                     <SelectContent>
                       <SelectItem value="name-asc">Sort: Name A-Z</SelectItem>
                       <SelectItem value="name-desc">Sort: Name Z-A</SelectItem>
-
                     </SelectContent>
                   </Select>
                 )}
               />
             </div>
-
           </CardHeader>
 
           <CardContent>
-
             <Table>
-
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -507,10 +516,8 @@ const AdminDashboard = () => {
               </TableHeader>
 
               <TableBody>
-
                 {filteredUsers.map((user) => (
                   <TableRow key={user._id}>
-
                     <TableCell className="font-medium flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       {user.name}
@@ -518,10 +525,7 @@ const AdminDashboard = () => {
 
                     <TableCell>{user.email}</TableCell>
 
-                    <TableCell className="capitalize">
-                      {user.role}
-                    </TableCell>
-
+                    <TableCell className="capitalize">{user.role}</TableCell>
                   </TableRow>
                 ))}
 
@@ -535,13 +539,9 @@ const AdminDashboard = () => {
                     </TableCell>
                   </TableRow>
                 )}
-
               </TableBody>
-
             </Table>
-
           </CardContent>
-
         </Card>
       )}
 
@@ -550,7 +550,11 @@ const AdminDashboard = () => {
           <CardHeader className="space-y-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">All Batches</CardTitle>
-              <Button type="button" variant="outline" onClick={clearBatchFilters}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearBatchFilters}
+              >
                 Reset Filters
               </Button>
             </div>
@@ -623,12 +627,18 @@ const AdminDashboard = () => {
               <TableBody>
                 {filteredBatches.map((batch) => (
                   <TableRow key={batch._id}>
-                    <TableCell className="font-medium">{batch.name || "N/A"}</TableCell>
+                    <TableCell className="font-medium">
+                      {batch.name || "N/A"}
+                    </TableCell>
                     <TableCell>{batch.tenantId?.name || "N/A"}</TableCell>
                     <TableCell>{batch.subjectId?.name || "N/A"}</TableCell>
-                    <TableCell>{batch.teacherId?.userId?.name || "N/A"}</TableCell>
+                    <TableCell>
+                      {batch.teacherId?.userId?.name || "N/A"}
+                    </TableCell>
                     <TableCell>{batch.studentIds?.length || 0}</TableCell>
-                    <TableCell className="capitalize">{batch.status || "N/A"}</TableCell>
+                    <TableCell className="capitalize">
+                      {batch.status || "N/A"}
+                    </TableCell>
                   </TableRow>
                 ))}
 
@@ -660,7 +670,6 @@ const AdminDashboard = () => {
         onConfirm={confirmAction}
         isConfirming={isActionLoading}
       />
-
     </div>
   );
 };
