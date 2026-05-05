@@ -1,3 +1,5 @@
+// server/controllers/auth.controller.js
+
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
@@ -6,10 +8,28 @@ import { User } from "../models/user.model.js";
 import { sendTenantMail } from "../services/mail/mail.service.js";
 import { MAIL_TYPES } from "../services/mail/mail.constant.js";
 import { isIndianMobileNumber } from "../utils/phone.js";
-// import crypto from "crypto";
+import crypto from "crypto";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// ── Constants ────────────────────────────────────────────────────────────────
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+const MAX_FORGOT_PASSWORD_ATTEMPTS = 5;
+const FORGOT_PASSWORD_LOCK_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// ── Helper: format remaining lock time for human-readable message ────────────
+function formatLockRemaining(lockedUntilDate) {
+  const remaining = lockedUntilDate - Date.now();
+  if (remaining <= 0) return "0 minutes";
+  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const minutes = Math.ceil((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+}
+
+// ── Register tenant ──────────────────────────────────────────────────────────
 export const registerTenant = async (req, res) => {
   try {
     const { tenantName, name, email, password, phone, address } = req.body;
@@ -56,7 +76,7 @@ export const registerTenant = async (req, res) => {
 
     // Mail to admin
     sendTenantMail(MAIL_TYPES.TENANT_REGISTER_ADMIN, user).catch((err) =>
-      console.error("Admin Mail Error:", err),
+      console.error("Admin Mail Error:", err)
     );
 
     // Mail to tenant
@@ -71,6 +91,7 @@ export const registerTenant = async (req, res) => {
   }
 };
 
+// ── Login ────────────────────────────────────────────────────────────────────
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -78,7 +99,29 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
+      // No user found – return generic invalid credentials (no attempt tracking for unknown emails)
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Rate-limiting only applies to non-superadmin roles
+    const isRateLimited = user.role !== "superadmin";
+
+    if (isRateLimited) {
+      // Check if currently locked
+      if (user.loginLockedUntil && user.loginLockedUntil > Date.now()) {
+        const remaining = formatLockRemaining(user.loginLockedUntil);
+        return res.status(429).json({
+          message: `Account temporarily locked due to too many failed attempts. Try again in ${remaining}.`,
+          locked: true,
+          lockedUntil: user.loginLockedUntil,
+        });
+      }
+
+      // If a previous lock has expired, reset counters
+      if (user.loginLockedUntil && user.loginLockedUntil <= Date.now()) {
+        user.loginAttempts = 0;
+        user.loginLockedUntil = null;
+      }
     }
 
     if (user.status === "blocked") {
@@ -90,7 +133,43 @@ export const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
+      if (isRateLimited) {
+        user.loginAttempts += 1;
+
+        if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+          // Lock the account for 24 hours
+          user.loginLockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
+          await user.save();
+
+          return res.status(429).json({
+            message:
+              "Too many failed login attempts. Your account is locked for 24 hours.",
+            locked: true,
+            lockedUntil: user.loginLockedUntil,
+          });
+        }
+
+        await user.save();
+
+        const attemptsLeft = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
+
+        return res.status(400).json({
+          message: "Invalid credentials",
+          attemptsLeft,
+          // Signal the frontend to show the "last attempt" warning toast
+          lastAttemptWarning: attemptsLeft === 1,
+        });
+      }
+
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // ── Password matched ─────────────────────────────────────────────────────
+
+    // Reset login attempt counters on successful login
+    if (isRateLimited && user.loginAttempts > 0) {
+      user.loginAttempts = 0;
+      user.loginLockedUntil = null;
     }
 
     // Tenant validation
@@ -98,32 +177,36 @@ export const loginUser = async (req, res) => {
       const tenant = await Tenant.findById(user.tenantId);
 
       if (!tenant) {
+        await user.save(); // save the reset attempt counts first
         return res.status(403).json({
           message: "Tenant not found. Please contact support.",
         });
       }
 
       if (tenant.status === "inactive") {
+        await user.save();
         return res.status(403).json({
           message: "Your account is pending admin approval.",
         });
       }
 
       if (tenant.status === "blocked") {
+        await user.save();
         return res.status(403).json({
           message: "Your account has been blocked.",
         });
       }
     }
+
     if (user.role === "student" || user.role === "tutor") {
       if (user.status === "inactive") {
+        await user.save();
         return res.status(403).json({
           message:
             "Your account is inactive. Please contact your tenant admin.",
         });
       }
     }
-    // console.log("user:", user);
 
     /* MARK USER ONLINE */
     user.onlineStatus = true;
@@ -136,7 +219,7 @@ export const loginUser = async (req, res) => {
         tenantId: user.tenantId,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" },
+      { expiresIn: "7d" }
     );
 
     return res.status(200).json({
@@ -157,6 +240,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
+// ── Logout ───────────────────────────────────────────────────────────────────
 export const logoutUser = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -176,6 +260,7 @@ export const logoutUser = async (req, res) => {
   }
 };
 
+// ── Forgot Password ──────────────────────────────────────────────────────────
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -188,34 +273,99 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    // const resetToken = crypto.randomBytes(32).toString("hex");
+    // Rate-limiting (same pattern as login, only for non-superadmin)
+    const isRateLimited = user.role !== "superadmin";
 
-    // const hashedToken = crypto
-    //   .createHash("sha256")
-    //   .update(resetToken)
-    //   .digest("hex");
+    if (isRateLimited) {
+      // Check if currently locked
+      if (
+        user.forgotPasswordLockedUntil &&
+        user.forgotPasswordLockedUntil > Date.now()
+      ) {
+        const remaining = formatLockRemaining(user.forgotPasswordLockedUntil);
+        return res.status(429).json({
+          message: `Too many reset attempts. Try again in ${remaining}.`,
+          locked: true,
+          lockedUntil: user.forgotPasswordLockedUntil,
+        });
+      }
 
-    const resetToken = Math.random().toString(32).substring(2);
+      // If a previous lock has expired, reset counters
+      if (
+        user.forgotPasswordLockedUntil &&
+        user.forgotPasswordLockedUntil <= Date.now()
+      ) {
+        user.forgotPasswordAttempts = 0;
+        user.forgotPasswordLockedUntil = null;
+      }
 
-    // const hashedToken = await bcrypt.hash(resetToken, 10);
-    // console.log("forgot : " , hashedToken)
-    user.resetPasswordToken = resetToken;
+      user.forgotPasswordAttempts += 1;
+
+      if (user.forgotPasswordAttempts >= MAX_FORGOT_PASSWORD_ATTEMPTS) {
+        // Lock for 24 hours
+        user.forgotPasswordLockedUntil = new Date(
+          Date.now() + FORGOT_PASSWORD_LOCK_DURATION_MS
+        );
+        await user.save();
+
+        return res.status(429).json({
+          message:
+            "Too many reset password attempts. This feature is locked for 24 hours.",
+          locked: true,
+          lockedUntil: user.forgotPasswordLockedUntil,
+        });
+      }
+
+      await user.save();
+
+      const attemptsLeft =
+        MAX_FORGOT_PASSWORD_ATTEMPTS - user.forgotPasswordAttempts;
+
+      // If this is the 4th attempt (1 remaining), include the warning flag
+      const lastAttemptWarning = attemptsLeft === 1;
+
+      // Still send the reset email even on the 4th attempt
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+      await user.save();
+
+      const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+      await sendTenantMail(MAIL_TYPES.PASSWORD_RESET, user, { resetLink });
+
+      return res.status(200).json({
+        success: true,
+        message: "Password reset email sent successfully.",
+        attemptsLeft,
+        lastAttemptWarning,
+      });
+    }
+
+    // superadmin – no rate limiting, just send the email
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
-
     await user.save();
 
-    /* 🔹 FRONTEND RESET PAGE */
-    const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
-
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     await sendTenantMail(MAIL_TYPES.PASSWORD_RESET, user, { resetLink });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Password reset email sent successfully.",
     });
   } catch (error) {
     console.error("Forgot Password Error:", error);
-
     res.status(500).json({
       success: false,
       message: "Something went wrong.",
@@ -223,20 +373,19 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
+// ── Reset Password ───────────────────────────────────────────────────────────
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
-    // const hashedToken = await bcrypt.hash(token, 10);
-    // const hashedToken = crypto
-    //   .createHash("sha256")
-    //   .update(token)
-    //   .digest("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
-    //  console.log("reset : " , hashedToken)
     const user = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: hashedToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
@@ -250,9 +399,12 @@ export const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     user.passwordHash = hashedPassword;
-
     user.resetPasswordToken = null;
     user.resetPasswordExpire = null;
+
+    // Also clear any login lock so the user can immediately log in after reset
+    user.loginAttempts = 0;
+    user.loginLockedUntil = null;
 
     await user.save();
 
@@ -262,7 +414,6 @@ export const resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Reset Password Error:", error);
-
     res.status(500).json({
       success: false,
       message: "Something went wrong.",
@@ -270,6 +421,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// ── Google Login ─────────────────────────────────────────────────────────────
 export const googleLogin = async (req, res) => {
   try {
     const { token, phone, address } = req.body;
@@ -277,11 +429,6 @@ export const googleLogin = async (req, res) => {
     if (!token) {
       return res.status(400).json({ message: "Token is required" });
     }
-
-    //         console.log("BACKEND CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
-
-    //         const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    // console.log("TOKEN AUD:", decoded.aud);
 
     // Verify the token with Google
     const ticket = await googleClient.verifyIdToken({
@@ -312,11 +459,9 @@ export const googleLogin = async (req, res) => {
         tenantId: null,
         status: "inactive",
         onlineStatus: true,
-        // No password for Google auth users
         passwordHash: Math.random().toString(36),
       });
 
-      // Create a default tenant for the user
       const tenant = await Tenant.create({
         name: `${name}'s Organization`,
         ownerUserId: user._id,
@@ -328,17 +473,13 @@ export const googleLogin = async (req, res) => {
       user.tenantId = tenant._id;
       await user.save();
 
-      // Send admin notification
       sendTenantMail(MAIL_TYPES.TENANT_REGISTER_ADMIN, user).catch((err) =>
-        console.error("Admin Mail Error:", err),
+        console.error("Admin Mail Error:", err)
       );
-
-      // Send welcome email
       sendTenantMail(MAIL_TYPES.TENANT_WELCOME, user).catch((err) =>
-        console.error("Welcome Mail Error:", err),
+        console.error("Welcome Mail Error:", err)
       );
 
-      // Return success with status - user needs admin approval
       return res.status(200).json({
         message:
           "Registration successful! Your account is pending admin approval.",
@@ -355,21 +496,18 @@ export const googleLogin = async (req, res) => {
         },
       });
     } else {
-      // Check user status
       if (user.status === "blocked") {
         return res.status(403).json({
           message: "Your account has been blocked",
         });
       }
 
-      // Update user's online status and profile image if needed
       user.onlineStatus = true;
       if (picture && !user.profileImage) {
         user.profileImage = picture;
       }
       await user.save();
 
-      // Check tenant status for non-superadmin users
       if (user.role !== "superadmin" && user.tenantId) {
         const tenant = await Tenant.findById(user.tenantId);
 
@@ -402,7 +540,6 @@ export const googleLogin = async (req, res) => {
       }
     }
 
-    // Generate JWT token
     const jwtToken = jwt.sign(
       {
         id: user._id,
@@ -410,7 +547,7 @@ export const googleLogin = async (req, res) => {
         tenantId: user.tenantId,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" },
+      { expiresIn: "7d" }
     );
 
     return res.status(200).json({

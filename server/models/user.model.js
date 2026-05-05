@@ -1,4 +1,5 @@
 // src/models/user.model.js
+// src/models/user.model.js
 
 import mongoose from "mongoose";
 
@@ -47,6 +48,7 @@ const userSchema = new Schema(
       enum: ["active", "blocked", "inactive"],
       default: "inactive",
     },
+
     resetPasswordToken: {
       type: String,
       default: null,
@@ -56,17 +58,38 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
-    
+
     onlineStatus: {
       type: Boolean,
-      default: false
+      default: false,
     },
-    profileImage : {
-      type : String,
-      default : ""
-    }
+
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
+    // ── Login attempt tracking ──────────────────────────────────────────────
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    loginLockedUntil: {
+      type: Date,
+      default: null,
+    },
+
+    // ── Forgot-password attempt tracking ───────────────────────────────────
+    forgotPasswordAttempts: {
+      type: Number,
+      default: 0,
+    },
+    forgotPasswordLockedUntil: {
+      type: Date,
+      default: null,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const User = model("User", userSchema);

@@ -1,3 +1,4 @@
+// frontend/src/auth/Login.jsx
 import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
@@ -14,7 +15,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +30,6 @@ import {
   validateIndianMobileNumber,
 } from "@/lib/phone";
 
-
 export default function Login() {
   const navigate = useNavigate();
   const hasGoogleClientId = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
@@ -45,6 +44,7 @@ export default function Login() {
   const [googlePhone, setGooglePhone] = useState("");
   const [googleAddress, setGoogleAddress] = useState("");
   const [googlePhoneError, setGooglePhoneError] = useState("");
+
   const { mutate: forgotPassword } = useForgotPassword();
   const {
     register,
@@ -59,7 +59,6 @@ export default function Login() {
   const processGoogleLogin = async (payload) => {
     const response = await googleLoginMutation.mutateAsync(payload);
 
-    // Backend says this is a new user needing phone/address
     if (response?.data?.needsDetails) {
       return response;
     }
@@ -83,9 +82,10 @@ export default function Login() {
   const handleGoogleLoginSuccess = async (credentialResponse) => {
     try {
       setIsGoogleLoading(true);
-      const response = await processGoogleLogin({ token: credentialResponse.credential });
+      const response = await processGoogleLogin({
+        token: credentialResponse.credential,
+      });
 
-      // Backend says this is a new user that needs phone/address
       if (response?.data?.needsDetails) {
         setGoogleCredential(credentialResponse.credential);
         setGooglePhone("");
@@ -102,7 +102,6 @@ export default function Login() {
     }
   };
 
-  // Step 2: User fills phone & address in dialog → complete registration
   const handleGoogleDialogSubmit = async () => {
     if (!googlePhone.trim()) {
       setGooglePhoneError("Phone number is required");
@@ -139,36 +138,90 @@ export default function Login() {
     loginMutation.mutate(data, {
       onSuccess: (res) => {
         login(res?.data?.token, res?.data?.user);
-
         toast.success("Login successful!");
-
-        // Redirect based on user role
         const userRole = res?.data?.user?.role;
         redirectByRole(userRole, navigate);
       },
       onError: (err) => {
-        toast.error(err.response?.data?.message || "Login failed");
+        const data = err.response?.data;
+
+        // Account locked (5th attempt already consumed)
+        if (data?.locked) {
+          toast.error(
+            data?.message ||
+              "Account temporarily locked. Try again after 24 hours.",
+          );
+          return;
+        }
+
+        // 4th wrong attempt → 1 attempt left → show warning toast
+        if (data?.lastAttemptWarning) {
+          toast.warning(
+            "You have 1 attempt left before your account is locked for 24 hours.",
+            {
+              duration: 6000,
+            },
+          );
+          return;
+        }
+
+        // Generic invalid credentials with attempts remaining
+        if (typeof data?.attemptsLeft === "number") {
+          toast.error(
+            `${data?.message || "Invalid credentials"} — ${data.attemptsLeft} attempt${
+              data.attemptsLeft !== 1 ? "s" : ""
+            } remaining.`,
+          );
+          return;
+        }
+
+        toast.error(data?.message || "Login failed");
       },
     });
   };
 
   const handleForgotPassword = () => {
-   
-    forgotPassword({email}, {
-      onSuccess: () => {
-        toast.success("Check Your Email For Reset Link");
-        setOpen(false);
-        setEmail("");
+    forgotPassword(
+      { email },
+      {
+        onSuccess: (res) => {
+          const data = res?.data;
+
+          // Show last-attempt warning before the success toast if applicable
+          if (data?.lastAttemptWarning) {
+            toast.warning(
+              "You have 1 reset attempt left before this feature is locked for 24 hours.",
+              { duration: 6000 },
+            );
+          } else {
+            toast.success("Check Your Email For Reset Link");
+          }
+
+          setOpen(false);
+          setEmail("");
+        },
+        onError: (err) => {
+          const data = err.response?.data;
+
+          // Forgot-password rate-limit locked
+          if (data?.locked) {
+            toast.error(
+              data?.message || "Too many attempts. Try again after 24 hours.",
+            );
+            setOpen(false);
+            setEmail("");
+            return;
+          }
+
+          toast.error(data?.message || "Forgot Password Failed");
+        },
       },
-      onError: (err) => {
-        toast.error(err.response?.data?.message || "Forgot Password Fail");
-      },
-    });
+    );
   };
 
   return (
     <div className="min-h-screen p-4 flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
-      <Card className="w-[380px]   bg-slate-900/90 backdrop-blur border border-slate-800 text-slate-100 shadow-2xl">
+      <Card className="w-[380px] bg-slate-900/90 backdrop-blur border border-slate-800 text-slate-100 shadow-2xl">
         <CardContent className="pt-6">
           <h2 className="text-2xl font-semibold text-center mb-6">Login</h2>
 
@@ -206,7 +259,11 @@ export default function Login() {
                   placeholder="••••••••"
                   className={`bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500 pr-10
                   focus-visible:ring-2 focus-visible:ring-slate-500
-                  ${errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  ${
+                    errors.password
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }`}
                   {...register("password", {
                     required: "Password is required",
                     minLength: {
@@ -230,20 +287,19 @@ export default function Login() {
                 </p>
               )}
               <p className="text-left text-sm text-slate-400 mt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="hover:text-white transition"
-            >
-              Forgot Password
-            </button>
-          </p>
+                <button
+                  type="button"
+                  onClick={() => setOpen(true)}
+                  className="hover:text-white transition"
+                >
+                  Forgot Password
+                </button>
+              </p>
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-slate-100 text-slate-900 hover:bg-slate-200
-                         font-medium transition"
+              className="w-full bg-slate-100 text-slate-900 hover:bg-slate-200 font-medium transition"
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? "Logging in..." : "Login"}
@@ -269,11 +325,14 @@ export default function Login() {
               />
             ) : (
               <p className="text-xs text-amber-300 text-center">
-                Google login is not configured. Add VITE_GOOGLE_CLIENT_ID in Client/.env.
+                Google login is not configured. Add VITE_GOOGLE_CLIENT_ID in
+                Client/.env.
               </p>
             )}
             {isGoogleLoading && (
-              <p className="text-xs text-slate-400">Signing in with Google...</p>
+              <p className="text-xs text-slate-400">
+                Signing in with Google...
+              </p>
             )}
           </div>
 
@@ -283,17 +342,16 @@ export default function Login() {
               Register
             </Link>
           </p>
-          
         </CardContent>
       </Card>
 
+      {/* ── Forgot Password Dialog ─────────────────────────────────────────── */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur border border-slate-800 text-slate-100 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-center">
               Forgot Password
             </DialogTitle>
-
             <DialogDescription className="text-slate-400 text-center text-sm">
               Enter your registered email address
             </DialogDescription>
@@ -303,7 +361,6 @@ export default function Login() {
             <Input
               placeholder="you@example.com"
               value={email}
-              
               type="email"
               onChange={(e) => setEmail(e.target.value)}
               className="bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500
@@ -331,11 +388,14 @@ export default function Login() {
         </DialogContent>
       </Dialog>
 
-      {/* Google Login – Phone & Address Dialog (shown for new users) */}
-      <Dialog open={googleDialogOpen} onOpenChange={(open) => {
-        setGoogleDialogOpen(open);
-        if (!open) setGoogleCredential(null);
-      }}>
+      {/* ── Google Login – Phone & Address Dialog ─────────────────────────── */}
+      <Dialog
+        open={googleDialogOpen}
+        onOpenChange={(open) => {
+          setGoogleDialogOpen(open);
+          if (!open) setGoogleCredential(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md bg-slate-900/95 backdrop-blur border border-slate-800 text-slate-100 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-center">
@@ -349,7 +409,10 @@ export default function Login() {
           <div className="space-y-4 mt-4">
             {/* Phone Number (required) */}
             <div className="space-y-2">
-              <Label htmlFor="google-login-phone" className="flex items-center gap-2">
+              <Label
+                htmlFor="google-login-phone"
+                className="flex items-center gap-2"
+              >
                 <Phone size={14} className="text-slate-400" />
                 Phone Number <span className="text-red-400">*</span>
               </Label>
@@ -361,13 +424,19 @@ export default function Login() {
                 placeholder="9876543210"
                 value={googlePhone}
                 onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const cleaned = e.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 10);
                   setGooglePhone(cleaned);
                   if (googlePhoneError) setGooglePhoneError("");
                 }}
                 className={`bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500
                   focus-visible:ring-2 focus-visible:ring-slate-500
-                  ${googlePhoneError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  ${
+                    googlePhoneError
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }`}
               />
               {googlePhoneError && (
                 <p className="text-red-500 text-sm">{googlePhoneError}</p>
@@ -376,9 +445,15 @@ export default function Login() {
 
             {/* Address (optional) */}
             <div className="space-y-2">
-              <Label htmlFor="google-login-address" className="flex items-center gap-2">
+              <Label
+                htmlFor="google-login-address"
+                className="flex items-center gap-2"
+              >
                 <MapPin size={14} className="text-slate-400" />
-                Address <span className="text-slate-500 text-xs font-normal">(optional)</span>
+                Address{" "}
+                <span className="text-slate-500 text-xs font-normal">
+                  (optional)
+                </span>
               </Label>
               <Input
                 id="google-login-address"
@@ -415,4 +490,3 @@ export default function Login() {
     </div>
   );
 }
-
