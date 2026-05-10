@@ -9,6 +9,7 @@ import { sendTenantMail } from "../services/mail/mail.service.js";
 import { MAIL_TYPES } from "../services/mail/mail.constant.js";
 import { isIndianMobileNumber } from "../utils/phone.js";
 import crypto from "crypto";
+import { addAuditLog, AUDIT_EVENTS } from "../services/auditLog.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -82,6 +83,17 @@ export const registerTenant = async (req, res) => {
     // Mail to tenant
     sendTenantMail(MAIL_TYPES.TENANT_WELCOME, user);
 
+    // ── Audit log ─────────────────────────────────────────────────────────────
+    addAuditLog({
+      event: AUDIT_EVENTS.TENANT_REGISTERED,
+      userId: user._id,
+      email: user.email,
+      role: "tenant",
+      tenantId: tenant._id,
+      meta: { tenantName: tenant.name },
+      req,
+    });
+
     return res.status(201).json({
       message: "Registration submitted. Wait for admin approval.",
     });
@@ -100,6 +112,7 @@ export const loginUser = async (req, res) => {
 
     if (!user) {
       // No user found – return generic invalid credentials (no attempt tracking for unknown emails)
+      addAuditLog({ event: AUDIT_EVENTS.LOGIN_FAILED, email: req.body.email, meta: { reason: "user_not_found" }, req });
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -110,6 +123,7 @@ export const loginUser = async (req, res) => {
       // Check if currently locked
       if (user.loginLockedUntil && user.loginLockedUntil > Date.now()) {
         const remaining = formatLockRemaining(user.loginLockedUntil);
+        addAuditLog({ event: AUDIT_EVENTS.LOGIN_LOCKED, userId: user._id, email: user.email, role: user.role, tenantId: user.tenantId, meta: { lockedUntil: user.loginLockedUntil }, req });
         return res.status(429).json({
           message: `Account temporarily locked due to too many failed attempts. Try again in ${remaining}.`,
           locked: true,
@@ -141,6 +155,8 @@ export const loginUser = async (req, res) => {
           user.loginLockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
           await user.save();
 
+          addAuditLog({ event: AUDIT_EVENTS.LOGIN_LOCKED, userId: user._id, email: user.email, role: user.role, tenantId: user.tenantId, meta: { reason: "max_attempts_reached", lockedUntil: user.loginLockedUntil }, req });
+
           return res.status(429).json({
             message:
               "Too many failed login attempts. Your account is locked for 24 hours.",
@@ -150,6 +166,8 @@ export const loginUser = async (req, res) => {
         }
 
         await user.save();
+
+        addAuditLog({ event: AUDIT_EVENTS.LOGIN_FAILED, userId: user._id, email: user.email, role: user.role, tenantId: user.tenantId, meta: { reason: "wrong_password", attemptsLeft: MAX_LOGIN_ATTEMPTS - user.loginAttempts }, req });
 
         const attemptsLeft = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
 
@@ -161,6 +179,7 @@ export const loginUser = async (req, res) => {
         });
       }
 
+      addAuditLog({ event: AUDIT_EVENTS.LOGIN_FAILED, userId: user._id, email: user.email, role: user.role, meta: { reason: "wrong_password" }, req });
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -221,6 +240,16 @@ export const loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+
+    // ── Audit log ─────────────────────────────────────────────────────────────
+    addAuditLog({
+      event: AUDIT_EVENTS.LOGIN_SUCCESS,
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      req,
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -338,6 +367,17 @@ export const forgotPassword = async (req, res) => {
       const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
       await sendTenantMail(MAIL_TYPES.PASSWORD_RESET, user, { resetLink });
 
+      // ── Audit log ───────────────────────────────────────────────────────────
+      addAuditLog({
+        event: AUDIT_EVENTS.PASSWORD_RESET_REQUESTED,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
+        meta: { attemptsLeft },
+        req,
+      });
+
       return res.status(200).json({
         success: true,
         message: "Password reset email sent successfully.",
@@ -359,6 +399,16 @@ export const forgotPassword = async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     await sendTenantMail(MAIL_TYPES.PASSWORD_RESET, user, { resetLink });
+
+    // ── Audit log ─────────────────────────────────────────────────────────────
+    addAuditLog({
+      event: AUDIT_EVENTS.PASSWORD_RESET_REQUESTED,
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      req,
+    });
 
     return res.status(200).json({
       success: true,
@@ -407,6 +457,16 @@ export const resetPassword = async (req, res) => {
     user.loginLockedUntil = null;
 
     await user.save();
+
+    // ── Audit log ─────────────────────────────────────────────────────────────
+    addAuditLog({
+      event: AUDIT_EVENTS.PASSWORD_RESET_COMPLETED,
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      req,
+    });
 
     res.status(200).json({
       success: true,

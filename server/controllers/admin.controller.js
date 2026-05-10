@@ -7,6 +7,7 @@ import { Batch } from "../models/batch.model.js";
 
 import { sendTenantMail } from "../services/mail/mail.service.js";
 import { MAIL_TYPES } from "../services/mail/mail.constant.js";
+import { addAuditLog, AUDIT_EVENTS } from "../services/auditLog.service.js";
 
 /**
  * Get all pending tenant requests
@@ -125,6 +126,16 @@ export const approveTenant = async (req, res) => {
       email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Approval Mail Error:", err));
 
+    addAuditLog({
+      event: AUDIT_EVENTS.TENANT_APPROVED,
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      tenantId: tenant._id,
+      meta: { tenantName: tenant.name, tenantOwnerEmail: tenant.ownerUserId.email },
+      req,
+    });
+
     return res.status(200).json({
       message: "Tenant approved successfully",
       data: tenant,
@@ -166,6 +177,16 @@ export const blockTenant = async (req, res) => {
       name: tenant.ownerUserId.name,
       email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Block Mail Error:", err));
+
+    addAuditLog({
+      event: AUDIT_EVENTS.TENANT_BLOCKED,
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      tenantId: tenant._id,
+      meta: { tenantName: tenant.name, tenantOwnerEmail: tenant.ownerUserId.email },
+      req,
+    });
 
     return res.status(200).json({
       message: "Tenant blocked successfully",
@@ -217,6 +238,16 @@ export const makeTenantInactive = async (req, res) => {
       email: tenant.ownerUserId.email,
     }).catch((err) => console.error("Inactive Mail Error:", err));
 
+    addAuditLog({
+      event: AUDIT_EVENTS.TENANT_INACTIVE,
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      tenantId: tenant._id,
+      meta: { tenantName: tenant.name, tenantOwnerEmail: tenant.ownerUserId.email },
+      req,
+    });
+
     return res.status(200).json({
       message: "Tenant marked as inactive successfully",
       data: tenant,
@@ -252,6 +283,19 @@ export const deleteTenant = async (req, res) => {
     }
 
     await Tenant.findByIdAndDelete(id);
+
+    addAuditLog({
+      event: AUDIT_EVENTS.TENANT_DELETED,
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      tenantId: id,
+      meta: {
+        tenantName: tenant.name,
+        tenantOwnerEmail: tenant.ownerUserId?.email || null,
+      },
+      req,
+    });
 
     return res.status(200).json({
       message: "Tenant deleted successfully",
