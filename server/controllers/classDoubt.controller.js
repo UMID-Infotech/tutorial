@@ -3,6 +3,7 @@ import { Class } from "../models/class.model.js";
 import { Tutor } from "../models/tutor.model.js";
 import { Student } from "../models/student.model.js";
 import { Batch } from "../models/batch.model.js";
+import { ROLES } from "../middlewares/role.middleware.js";
 import { ClassDoubt } from "../models/classDoubt.model.js";
 
 const formatClassDate = (rawDate) => {
@@ -71,16 +72,16 @@ const validateClassAccess = async (req, classId) => {
   }
 
   let hasAccess = false;
-  if (role === "tenant") {
+  if (role === ROLES.TENANT) {
     // Tenants have access to all classes in their institute
     hasAccess = true;
-  } else if (role === "tutor") {
+  } else if (role === ROLES.TUTOR) {
     hasAccess = await canTutorAccessClass({ userId, tenantId, classDoc });
-  } else if (role === "student") {
+  } else if (role === ROLES.STUDENT) {
     hasAccess = await canStudentAccessClass({ userId, tenantId, classDoc });
   }
 
-  if (!["student", "tutor", "tenant"].includes(role)) {
+  if (![ROLES.STUDENT, ROLES.TUTOR, ROLES.TENANT].includes(role)) {
     return { error: { status: 403, message: "You cannot access this class doubts" } };
   }
 
@@ -107,7 +108,7 @@ const validateClassAccess = async (req, classId) => {
 const resolveStudentId = async (req) => {
   const { id: userId, role, tenantId } = req.user;
 
-  if (role === "student") {
+  if (role === ROLES.STUDENT) {
     const studentProfile = await Student.findOne({ userId, tenantId }).select("_id");
     if (!studentProfile) return null;
     return String(studentProfile._id);
@@ -133,7 +134,7 @@ export const getClassDoubtConversation = async (req, res) => {
     const studentId = await resolveStudentId(req);
 
     if (!studentId) {
-      if (role === "student") {
+      if (role === ROLES.STUDENT) {
         return res.status(400).json({ message: "studentId is required" });
       }
 
@@ -216,7 +217,7 @@ export const addClassDoubtMessage = async (req, res) => {
 
     // When a new doubt message is sent, reset status to pending
     // Skip reset for the "Doubt Solved" system message
-    if (role === "student" && text !== "Doubt Solved") {
+    if (role === ROLES.STUDENT && text !== "Doubt Solved") {
       thread.doubtStatus = "pending";
       thread.updatedBy = null;
     }
@@ -250,7 +251,7 @@ export const markDoubtSolved = async (req, res) => {
     }
 
     // For students, validate class access
-    if (role === "student") {
+    if (role === ROLES.STUDENT) {
       const accessResult = await validateClassAccess(req, classId);
       if (accessResult.error) {
         return res

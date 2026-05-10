@@ -1,3 +1,6 @@
+// server/controllers/classNote.controller.js
+import { hasRole, ROLES } from "../middlewares/role.middleware.js";
+
 // Delete a class note
 export const deleteClassNote = async (req, res) => {
   try {
@@ -222,7 +225,7 @@ export const getClassNotes = async (req, res) => {
   try {
     const { classId } = req.params;
     const accessResult =
-      req.user.role === "student"
+      hasRole(req.user, ROLES.STUDENT)
         ? await validateStudentClassAccess(req, classId)
         : await validateTutorClassAccess(req, classId);
 
